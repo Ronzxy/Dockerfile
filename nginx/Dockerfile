@@ -18,8 +18,8 @@ RUN mkdir -p /var/cache/nginx /var/log/nginx && \
 
 # 复制数据
 COPY nginx/sbin/nginx /usr/sbin/
-COPY nginx/etc/nginx /etc/nginx
-COPY nginx/html /opt/www
+COPY nginx/conf /etc/nginx
+COPY nginx/html /usr/html
 
 EXPOSE 80 443
 

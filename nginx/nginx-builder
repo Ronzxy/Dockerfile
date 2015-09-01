@@ -12,8 +12,8 @@ if [ "$VERSION" = "" ]; then
   VERSION=1.8.0
 fi
 
-WORKDIR=$(pwd)
-PREFIX=$WORKDIR/nginx
+WORK_DIR=$(pwd)
+PREFIX=/usr
 NGINX_FILE=nginx-$VERSION.tar.gz
 NGINX_URL=http://nginx.org/download/$NGINX_FILE
 
@@ -30,7 +30,7 @@ cd nginx-$VERSION
 
 ./configure --prefix=$PREFIX \
 --sbin-path=$PREFIX/sbin/nginx \
---conf-path=$PREFIX/etc/nginx/nginx.conf \
+--conf-path=/etc/nginx/nginx.conf \
 --error-log-path=/var/log/nginx/error.log \
 --http-log-path=/var/log/nginx/access.log \
 --pid-path=/var/run/nginx.pid \
@@ -62,6 +62,21 @@ cd nginx-$VERSION
 --with-cc-opt='-O2 -g -m64 -mtune=generic'
 
 make
-make install
 
-docker build -t nginx:$VERSION $WORKDIR
+mkdir -p $WORK_DIR/nginx/sbin
+cp objs/nginx $WORK_DIR/nginx/sbin
+cp -r conf html $WORK_DIR/nginx
+
+cd $WORK_DIR/nginx/conf
+
+cp fastcgi.conf  fastcgi.conf.default
+cp fastcgi_params  fastcgi_params.default
+cp koi-utf  koi-utf.default
+cp koi-win  koi-win.default
+cp mime.types  mime.types.default
+cp nginx.conf  nginx.conf.default
+cp scgi_params  scgi_params.default
+cp uwsgi_params uwsgi_params.default
+cp win-utf win-utf.default
+
+docker build -t nginx:$VERSION $WORK_DIR
