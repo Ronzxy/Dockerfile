@@ -20,7 +20,7 @@ NGINX_URL=http://nginx.org/download/$NGINX_FILE
 if [ -s $NGINX_FILE ]; then
     echo "tar zxvf $NGINX_FILE"
   else
-    wget -c $NGINX_URL
+    wget -c $NGINX_URL || exit 1
 fi
 
 apt-get install -y gcc g++ make patch libpcre3-dev zlib1g-dev libssl-dev google-perftools/stable libgoogle-perftools-dev/stable

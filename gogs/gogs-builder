@@ -1,0 +1,26 @@
+#!/bin/sh
+# Gogs auto docker under debian
+# Powered by cr: zhangchaoren@openeasy.net
+
+
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+export PATH
+
+echo "Please input gogs version:"
+read -p "(Default version: 0.6.9):" VERSION
+if [ "$VERSION" = "" ]; then
+  VERSION=0.6.9
+fi
+
+WORK_DIR=$(pwd)
+PREFIX=/usr
+GOGS_FILE=gogs_v${VERSION}_linux_amd64.zip
+GOGS_URL=http://gogs.dn.qbox.me/$GOGS_FILE
+
+if [ ! -s $GOGS_FILE ]; then
+    wget -c $GOGS_URL || exit 1
+fi
+
+unzip $GOGS_FILE
+
+docker build -t gogs:$VERSION $WORK_DIR
