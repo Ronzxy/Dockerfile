@@ -3,7 +3,17 @@
 if ! test -d $GOGS_CUSTOM/gogs
 then
 	mkdir -p /var/run/sshd
-	mkdir -p $GOGS_CUSTOM/gogs/data $GOGS_CUSTOM/gogs/conf $GOGS_CUSTOM/gogs/log $GOGS_CUSTOM/git
+	mkdir -p $GOGS_CUSTOM/gogs/data $GOGS_CUSTOM/gogs/log
+fi
+
+if ! test -d $GOGS_CUSTOM/conf
+then
+	mkdir -p $GOGS_CUSTOM/conf
+fi
+
+if ! test -d $GOGS_CUSTOM/git
+then
+	mkdir -p $GOGS_CUSTOM/git
 fi
 
 if ! test -d $GOGS_CUSTOM/ssh
@@ -20,8 +30,9 @@ fi
 
 /etc/init.d/ssh start
 
-ln -sf $GOGS_CUSTOM/gogs/log ./log
-ln -sf $GOGS_CUSTOM/gogs/data ./data
+rm -rf /gogs/log /gogs/data /home/git
+ln -sf $GOGS_CUSTOM/gogs/log /gogs/log
+ln -sf $GOGS_CUSTOM/gogs/data /gogs/data
 ln -sf $GOGS_CUSTOM/git /home/git
 
 test -d $GOGS_CUSTOM/gogs/templates || cp -ar ./templates $GOGS_CUSTOM/gogs/
@@ -31,8 +42,10 @@ if ! test -d /home/git/.ssh
 then
     mkdir -p /home/git/.ssh
     chmod 700 /home/git/.ssh
-	chown -R git:git /home/git/.ssh
+	chown -R git:git /home/git
 fi
+
+chown -R git:git /data
 
 export GIT_SSL_NO_VERIFY=1
 exec su git -c "./gogs web"

@@ -13,13 +13,13 @@ chmod 755 nginx-builder
 
 # 创建容器
 ```shell
-docker run --name nginx_inst \
+docker run --name nginx_inst1 \
 -p 80:80 \
 -p 443:443 \
--v /docker/nginx_inst/conf/nginx.conf:/etc/nginx/nginx.conf \
--v /docker/nginx_inst/conf/conf.d:/etc/nginx/conf.d \
--v /docker/nginx_inst/logs/:/logs \
--v /docker/nginx_inst/keys/:/keys \
--v /docker/nginx_inst/html/:/html \
+-v /data/run/docker/nginx_inst1/conf/nginx.conf:/etc/nginx/nginx.conf \
+-v /data/run/docker/nginx_inst1/conf/conf.d:/etc/nginx/conf.d \
+-v /data/run/docker/nginx_inst1/logs:/var/log/nginx \
+-v /data/run/docker/nginx_inst1/keys:/keys \
+-v /data/run/docker/nginx_inst1/data:/data \
 -d nginx:1.8.0
 ```

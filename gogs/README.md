@@ -16,6 +16,6 @@ chmod 755 gogs-builder
 docker run --name gogs_inst1 \
 -p 10022:22 \
 -p 3000:3000 \
--v /docker/gogs_inst1/data:/data \
--d gogs
+-v /data/run/docker/gogs_inst1/data:/data \
+-d gogs:0.6.9
 ```
