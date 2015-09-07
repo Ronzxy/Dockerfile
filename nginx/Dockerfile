@@ -15,15 +15,17 @@ RUN apt-get update && \
 # 添加用户
 RUN groupadd -r www && \
     useradd -r -g www www -d /opt/www -s /sbin/nologin
-# 创建目录及修改权限
-RUN mkdir -p /var/cache/nginx /var/log/nginx && \
-    chown -R www:www /var/cache/nginx /var/log/nginx
+    
+WORKDIR /opt/www
 
 # 复制数据
 COPY nginx/sbin/nginx /usr/sbin/
 COPY nginx/conf /etc/nginx
 COPY nginx/html /usr/html
+COPY startup.sh /opt/www
+
+RUN chmod 755 /opt/www/startup.sh
 
 EXPOSE 80 443
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["./startup.sh"]

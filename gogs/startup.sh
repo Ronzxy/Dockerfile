@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export GIT_SSL_NO_VERIFY=1
+
 if ! test -d $GOGS_CUSTOM/gogs
 then
 	mkdir -p /var/run/sshd
@@ -47,5 +49,7 @@ fi
 
 chown -R git:git /data
 
-export GIT_SSL_NO_VERIFY=1
-exec su git -c "./gogs web"
+for ((i=1; i>0; i++)); do
+	exec su git -c "export GIT_SSL_NO_VERIFY=1;./gogs web"
+	sleep 5
+done
