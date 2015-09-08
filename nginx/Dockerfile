@@ -15,16 +15,16 @@ RUN apt-get update && \
 # 添加用户
 RUN groupadd -r www && \
     useradd -r -g www www -d /opt/www -s /sbin/nologin
-    
-WORKDIR /opt/www
+
+WORKDIR /
 
 # 复制数据
 COPY nginx/sbin/nginx /usr/sbin/
 COPY nginx/conf /etc/nginx
 COPY nginx/html /usr/html
-COPY startup.sh /opt/www
+COPY startup.sh /
 
-RUN chmod 755 /opt/www/startup.sh
+RUN chmod 755 /startup.sh
 
 EXPOSE 80 443
 
