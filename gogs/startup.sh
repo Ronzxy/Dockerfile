@@ -49,7 +49,4 @@ fi
 
 chown -R git:git /data
 
-for ((i=1; i>0; i++)); do
-	exec su git -c "export GIT_SSL_NO_VERIFY=1;./gogs web"
-	sleep 5
-done
+exec su git -c "export GIT_SSL_NO_VERIFY=1;./gogs web"
