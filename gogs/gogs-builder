@@ -21,6 +21,6 @@ if [ ! -s $GOGS_FILE ]; then
     wget -c $GOGS_URL || exit 1
 fi
 
-unzip $GOGS_FILE
+unzip -o $GOGS_FILE
 
 docker build -t gogs:$VERSION $WORK_DIR
