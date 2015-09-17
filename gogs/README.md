@@ -7,8 +7,8 @@ Create gogs docker image in debian.
 ```shell
 git clone https://openeasy.net/openeasy/dockerfile.git
 cd dockerfile/gogs
-chmod 755 gogs-builder
-./gogs-builder
+chmod 755 builder
+./builder
 ```
 
 # 创建容器

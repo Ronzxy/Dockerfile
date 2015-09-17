@@ -7,8 +7,8 @@ Auto build nginx and create nginx docker image in debian.
 ```shell
 git clone https://openeasy.net/openeasy/dockerfile.git
 cd dockerfile/nginx
-chmod 755 nginx-builder
-./nginx-builder
+chmod 755 builder
+./builder
 ```
 
 # 创建容器
