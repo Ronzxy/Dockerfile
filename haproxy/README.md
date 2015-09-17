@@ -1,4 +1,4 @@
-Nginx
+HAProxy
 ==========
 
 Auto build haproxy and create haproxy docker image in debian.
