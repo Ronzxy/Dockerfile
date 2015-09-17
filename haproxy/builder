@@ -1,0 +1,37 @@
+#!/bin/sh
+# Nginx auto docker in debian
+# Powered by cr: zhangchaoren@openeasy.net
+
+
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+export PATH
+
+echo "Please input HAProxy version:"
+read -p "(Default version: 1.5.14):" VERSION
+if [ "$VERSION" = "" ]; then
+  VERSION=1.5.14
+fi
+
+WORK_DIR=$(pwd)
+PREFIX=$WORK_DIR/haproxy
+HAPROXY_FILE=haproxy-$VERSION.tar.gz
+HAPROXY_URL=http://mirrors.openeasy.net/haproxy/$HAPROXY_FILE
+
+if [ ! -s $HAPROXY_FILE ]; then
+    wget -c $HAPROXY_URL || exit 1
+fi
+
+apt-get install -y gcc g++ make patch libpcre3-dev zlib1g-dev libssl-dev
+
+tar zxvf $HAPROXY_FILE
+cd haproxy-$VERSION
+
+make TARGET=linux2628 USE_PCRE=1 USE_OPENSSL=1 USE_ZLIB=1
+make install PREFIX=$PREFIX
+
+mkdir -p $PREFIX/conf
+cp -r examples $PREFIX
+cp examples/haproxy.cfg $PREFIX/conf/haproxy.cfg
+cp $WORK_DIR/startup.sh $PREFIX
+
+docker build -t haproxy:$VERSION $WORK_DIR
