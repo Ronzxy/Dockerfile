@@ -3,15 +3,20 @@ Docker Official
 
 docker 官方映像快捷使用记录
 
+***安装Docker***
+```sh
+curl -sSL https://get.docker.com | sh
+```
+
 *PostgreSQL*:
 ```sh
 # 获取映像
-docker pull library/postgres:9.4.4
+docker pull library/postgres:9.4.5
 # 创建并启动
 docker run --name postgres_inst1 \
 -p 5432:5432 \
 -v /data/run/docker/postgres_inst1/data:/var/lib/postgresql/data:rw \
--e POSTGRES_PASSWORD=123456 -d postgres:9.4.4
+-e POSTGRES_PASSWORD=123456 -d postgres:9.4.5
 ```
 
 *Percona(MySQL)*:
