@@ -53,7 +53,7 @@ docker run --name tomcat8_inst1 \
 *Redis*:
 ```sh
 # 获取映像
-docker pull redis:3.0.3
+docker pull redis:3.0.5
 # 创建并启动
 docker run --name redis_inst1 \
 -p 6379:6379 \
