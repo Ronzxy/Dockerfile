@@ -1,5 +1,5 @@
 #!/bin/sh
-# Nginx auto docker in debian
+# HAProxy auto docker in debian
 # Powered by cr: zhangchaoren@openeasy.net
 
 

@@ -1,7 +1,7 @@
 Docker Official
 ====
 
-docker 官方映像快捷使用记录
+docker 官方映像使用及配置
 
 ## 安装Docker ##
 ```sh
@@ -71,3 +71,42 @@ docker run --name redis_inst1 \
 -v /data/run/docker/redis_inst1/data:/data:rw \
 -d redis:3.0.3 redis-server --appendonly yes
 ```
+
+
+
+
+# 限制内存 #
+```sh
+#   On systems using GRUB (which is the default for Ubuntu), 
+#   you can add those parameters by editing /etc/default/grub 
+#   and extending GRUB_CMDLINE_LINUX. Look for the following line:
+#   
+#   $ GRUB_CMDLINE_LINUX=""
+#   And replace it by the following one:
+#   
+#   $ GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"
+#   Then run sudo update-grub, and reboot.
+#   
+#   These parameters will help you get rid of the following warnings:
+#   
+#   WARNING: Your kernel does not support cgroup swap limit.
+#   WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.
+
+
+vim /etc/default/grub
+# GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"
+sudo update-grub
+reboot
+```
+
+# 自动重启 #
+```sh
+#   使用在 Docker run 的时候使用 --restart 参数来设置。
+#   
+#   no          - container不重启
+#   on-failure  - container推出状态非0时重启
+#   always      - 始终重启
+
+https://docs.docker.com/reference/commandline/cli/#restart-policies
+```
+
