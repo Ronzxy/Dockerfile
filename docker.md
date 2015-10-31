@@ -3,6 +3,8 @@ Docker Official
 
 docker 官方映像使用及配置
 
+# 运行容器 #
+
 ## 安装Docker ##
 ```sh
 curl -sSL https://get.docker.com | sh
@@ -73,9 +75,55 @@ docker run --name redis_inst1 \
 ```
 
 
+# 高级配置 #
+
+## 限制CPU ##
+```sh
+--cpu-shares=512   # CPU配额，默认最大值1024。简称 -c
+--cpuset-cpus=0,1  # 指定使用的CPU核心编号，1.6及以下版本是--cpuset
+```
+
+## 限制内存 ##
+限制内存后超出使用限制会OOMKilled进程
+```sh
+--memory=100m      # 限制内存(mem+swap) -m
+--memory-swap=-1   # 限制swap+内存，关闭swap为-1
+```
+
+## 关闭OOMKilled ##
+```sh
+--oom-kill-disable=true
+```
+
+## 自动重启 ##
+```sh
+#   使用在 Docker run 的时候使用 --restart 参数来设置。
+#   
+#   no          - container不重启
+#   on-failure  - container推出状态非0时重启
+#   always      - 始终重启
+#
+# https://docs.docker.com/reference/commandline/cli/#restart-policies
+
+--restart=always
+```
+
+## 网络模式 ##
+```sh
+--net=bridge、host、container、none
+```
+
+## 设置DNS ##
+```sh
+--dns=8.8.8.8
+--dns=4.4.4.4
+```
 
 
-# 限制内存 #
+
+# 疑难问题 #
+
+## 内存限制无效 ##
 ```sh
 #   On systems using GRUB (which is the default for Ubuntu), 
 #   you can add those parameters by editing /etc/default/grub 
@@ -98,15 +146,3 @@ vim /etc/default/grub
 sudo update-grub
 reboot
 ```
-
-# 自动重启 #
-```sh
-#   使用在 Docker run 的时候使用 --restart 参数来设置。
-#   
-#   no          - container不重启
-#   on-failure  - container推出状态非0时重启
-#   always      - 始终重启
-
-https://docs.docker.com/reference/commandline/cli/#restart-policies
-```
-
