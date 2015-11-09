@@ -17,5 +17,5 @@ docker run --name haproxy_inst1 \
 -p 13501:13501 \
 -v /data/run/docker/haproxy_inst1/conf/haproxy.cfg:/haproxy/conf/haproxy.cfg \
 -v /data/run/docker/haproxy_inst1/logs:/var/log/haproxy \
--d haproxy:1.5.14
+-d haproxy:1.6.1
 ```

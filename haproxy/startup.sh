@@ -1,4 +1,6 @@
 #!/bin/bash
+#
+# 如果出现不报错退出请关闭HAProxy的daemon模式
 
 WORK_DIR=$(pwd)
 CONF_FILE=$WORK_DIR/conf/haproxy.cfg

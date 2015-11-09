@@ -30,9 +30,8 @@ cd haproxy-$VERSION
 make TARGET=linux2628 USE_PCRE=1 USE_OPENSSL=1 USE_ZLIB=1
 make install PREFIX=$PREFIX
 
-mkdir -p $PREFIX/conf
 cp -r examples $PREFIX
-cp examples/haproxy.cfg $PREFIX/conf/haproxy.cfg
+cp -r $WORK_DIR/conf $PREFIX
 cp $WORK_DIR/startup.sh $PREFIX
 
 docker build -t haproxy:$VERSION $WORK_DIR
