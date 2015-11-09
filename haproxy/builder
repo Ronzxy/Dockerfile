@@ -7,7 +7,7 @@ PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 export PATH
 
 echo "Please input HAProxy version:"
-read -p "(Default version: 1.6.0):" VERSION
+read -p "(Default version: 1.6.1):" VERSION
 if [ "$VERSION" = "" ]; then
   VERSION=1.6.0
 fi

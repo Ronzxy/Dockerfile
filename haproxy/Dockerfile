@@ -1,6 +1,6 @@
 FROM debian:jessie
 
-MAINTAINER NGINX Docker Maintainers "zhangchaoren@openeasy.net"
+MAINTAINER HAPROXY Docker Maintainers "zhangchaoren@openeasy.net"
 
 RUN echo "deb http://mirrors.163.com/debian/ jessie main" > /etc/apt/sources.list
 #RUN echo "deb-src http://mirrors.163.com/debian/ jessie main" >> /etc/apt/sources.list
