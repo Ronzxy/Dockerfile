@@ -6,9 +6,12 @@
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 export PATH
 
-VERSION=1.6.1
+DEFAULT_VERSION=1.6.1
 
-read -p "Please enter the version you want to install (default ver.$VERSION)" VERSION
+read -p "Please enter the version you want to install (default $DEFAULT_VERSION):" VERSION
+if [ "$VERSION" = "" ]; then
+  VERSION=$DEFAULT_VERSION
+fi
 
 WORK_DIR=$(pwd)
 PREFIX=$WORK_DIR/haproxy
