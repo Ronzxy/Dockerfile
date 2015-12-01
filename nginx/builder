@@ -6,10 +6,11 @@
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 export PATH
 
-echo "Please input nginx version:"
-read -p "(Default version: 1.8.0):" VERSION
+DEFAULT_VERSION=1.8.0
+
+read -p "Please enter the version you want to install (default $DEFAULT_VERSION):" VERSION
 if [ "$VERSION" = "" ]; then
-  VERSION=1.8.0
+  VERSION=$DEFAULT_VERSION
 fi
 
 WORK_DIR=$(pwd)
