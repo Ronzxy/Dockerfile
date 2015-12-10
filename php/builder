@@ -141,6 +141,7 @@ cp php.ini-development php.ini-production /etc/php
 cp /etc/php/php.ini-production /etc/php/php.ini
 cp /etc/php/php-fpm.conf.default /etc/php/php-fpm.conf
 cp /etc/php/php-fpm.d/www.conf.default /etc/php/php-fpm.d/www.conf
+mkdir -p /etc/php.d
 
 apt-get purge -y gcc g++ make autoconf pkg-config \
 libjpeg-dev libpng12-dev zlib1g-dev libxml2-dev libssl-dev libbison-dev libpcre3-dev libbz2-dev \
