@@ -13,6 +13,9 @@ if [ "$VERSION" = "" ]; then
   VERSION=$DEFAULT_VERSION
 fi
 
+apt-get update
+apt-get install -y wget
+
 WORK_DIR=$(pwd)
 PREFIX=/usr
 NGINX_FILE=nginx-$VERSION.tar.gz
@@ -60,6 +63,7 @@ cd nginx-$VERSION
 --with-threads \
 --with-google_perftools_module \
 --with-cpp_test_module \
+--with-stream \
 --with-cc-opt='-O2 -g -m64 -mtune=generic'
 
 make
