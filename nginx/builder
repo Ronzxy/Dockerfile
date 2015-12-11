@@ -65,6 +65,7 @@ cd nginx-$VERSION
 --with-cpp_test_module \
 --with-stream \
 --with-cc-opt='-O2 -g -m64 -mtune=generic'
+#--with-ld-opt="-ljemalloc"
 
 make
 
