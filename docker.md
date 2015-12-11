@@ -3,12 +3,39 @@ Docker Official
 
 docker 官方映像使用及配置
 
-# 运行容器 #
+# 初始化环境 #
 
 ## 安装Docker ##
 ```sh
 curl -sSL https://get.docker.com | sh
 ```
+
+# 操作命令 #
+
+## 获取 FULL CONTAINER ID
+```sh
+docker inspect -f '{{.Id}}' SHORT_CONTAINER_ID || CONTAINER_NAME
+```
+
+## 复制 ##
+
+### 1. 从 container 到 主机（host）
+使用 docker cp 命令
+```sh
+　　docker cp <containerId>:/file/path/within/container /host/path/target
+```
+ 
+### 2. 从 主机（host） 到 container
+```sh
+# 获取 FULL CONTAINER ID
+# 1. Aufs
+sudo cp PATH/TO/FILE /var/lib/docker/aufs/mnt/${FULL_CONTAINER_ID}/PATH/TO/FILE
+
+# 2. Btrfs
+sudo cp PATH/TO/FILE /var/lib/docker/btrfs/subvolumes/${FULL_CONTAINER_ID}/PATH/TO/FILE
+```
+
+# 运行容器 #
 
 ## PostgreSQL ##
 *运行PostgreSQL容器*:
