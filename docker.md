@@ -22,7 +22,7 @@ docker inspect -f '{{.Id}}' SHORT_CONTAINER_ID || CONTAINER_NAME
 ### 1. 从 container 到 主机（host）
 使用 docker cp 命令
 ```sh
-　　docker cp <containerId>:/file/path/within/container /host/path/target
+　　docker cp <SHORT_CONTAINER_ID || CONTAINER_NAME>:/PATH/TO/FILE/WITHIN/CONTAINER /PATH/TO/FILE
 ```
  
 ### 2. 从 主机（host） 到 container
