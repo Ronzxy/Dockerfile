@@ -1,4 +1,5 @@
 #!/bin/bash
+# Auto build php in nginx docker container
 # 0 0 * * * /path/php-fpm.sh restart > /dev/null 2>&1
 # */1 * * * * /path/php-fpm.sh start > /dev/null 2>&1
 
