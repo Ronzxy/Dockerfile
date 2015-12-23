@@ -27,7 +27,7 @@ if [ -s $NGINX_FILE ]; then
     wget -c $NGINX_URL || exit 1
 fi
 
-apt-get install -y gcc g++ make patch libpcre3-dev zlib1g-dev libssl-dev google-perftools/stable libgoogle-perftools-dev/stable
+apt-get install -y gcc g++ make patch libpcre3-dev zlib1g-dev libssl-dev libjemalloc-dev
 
 tar zxvf $NGINX_FILE
 cd nginx-$VERSION
@@ -61,11 +61,10 @@ cd nginx-$VERSION
 --with-file-aio \
 --with-ipv6 \
 --with-threads \
---with-google_perftools_module \
 --with-cpp_test_module \
 --with-stream \
---with-cc-opt='-O2 -g -m64 -mtune=generic'
-#--with-ld-opt="-ljemalloc"
+--with-cc-opt='-O2 -g -m64 -mtune=generic' \
+--with-ld-opt="-ljemalloc"
 
 make
 

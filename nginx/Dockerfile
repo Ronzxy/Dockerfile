@@ -7,7 +7,7 @@ RUN echo "deb http://mirrors.163.com/debian/ jessie main" > /etc/apt/sources.lis
 
 # 安装依赖包
 RUN apt-get update && \
-    apt-get install -y libpcre3 zlib1g libssl1.0.0/stable google-perftools/stable &&\
+    apt-get install -y libpcre3 zlib1g libssl1.0.0 libjemalloc1 && \
     apt-get autoclean && \
     apt-get autoremove && \
     rm -rf /var/lib/apt/lists/*
