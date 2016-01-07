@@ -1,0 +1,13 @@
+#!/bin/sh
+# mongodb auto docker in debian
+# Powered by cr: zhangchaoren@openeasy.net
+
+WORK_DIR=$(pwd)
+DEFAULT_VERSION=debian-wheezy
+
+# read -p "Please enter the version you want to install (default $DEFAULT_VERSION):" VERSION
+if [ "$VERSION" = "" ]; then
+  VERSION=$DEFAULT_VERSION
+fi
+
+docker build -t mongodb:$VERSION $WORK_DIR
