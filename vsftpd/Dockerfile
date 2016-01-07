@@ -2,11 +2,8 @@ FROM debian:jessie
 
 MAINTAINER NGINX Docker Maintainers "zhangchaoren@openeasy.net"
 
-RUN echo "deb http://mirrors.163.com/debian/ jessie main" > /etc/apt/sources.list
-#RUN echo "deb-src http://mirrors.163.com/debian/ jessie main" >> /etc/apt/sources.list
-
-# 安装依赖包
-RUN apt-get update && \
+RUN echo "deb http://mirrors.163.com/debian/ jessie main" > /etc/apt/sources.list && \
+    apt-get update && \
     apt-get install -y vsftpd db-util &&\
     apt-get autoclean && \
     apt-get autoremove && \

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Nginx auto docker in debian
+# docker entry point for vsftpd
 # Powered by cr: zhangchaoren@openeasy.net
 
 
