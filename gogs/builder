@@ -6,21 +6,26 @@
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 export PATH
 
-echo "Please input gogs version:"
-read -p "(Default version: 0.6.9):" VERSION
+
+DEFAULT_VERSION=0.8.10
+
+read -p "Please enter the version you want to install (default $DEFAULT_VERSION):" VERSION
 if [ "$VERSION" = "" ]; then
-  VERSION=0.6.9
+  VERSION=$DEFAULT_VERSION
 fi
 
 WORK_DIR=$(pwd)
-PREFIX=/usr
-GOGS_FILE=gogs_v${VERSION}_linux_amd64.zip
-GOGS_URL=http://gogs.dn.qbox.me/$GOGS_FILE
+GOGS_URL=https://github.com/gogits/gogs/releases/download/v$VERSION/linux_amd64.tar.gz
+GOGS_FILE=gogs-v$VERSION-linux_amd64.tar.gz
+
+sudo apt-get update && \
+    apt-get install -y wget
 
 if [ ! -s $GOGS_FILE ]; then
     wget -c $GOGS_URL || exit 1
+    mv linux_amd64.tar.gz $GOGS_FILE || exit 1
 fi
 
-unzip -o $GOGS_FILE
+tar xvf $GOGS_FILE
 
 docker build -t gogs:$VERSION $WORK_DIR
