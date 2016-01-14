@@ -3,7 +3,7 @@ Gogs
 
 Create gogs docker image in debian.
 
-# Usage:
+# 使用方法
 ```shell
 git clone https://openeasy.net/openeasy/dockerfile.git
 cd dockerfile/gogs
@@ -17,5 +17,8 @@ docker run --name gogs_inst1 \
 -p 10022:22 \
 -p 3000:3000 \
 -v /data/run/docker/gogs_inst1/data:/data \
--d gogs:0.6.9
+-d gogs:0.8.10
 ```
+
+# 版本升级
+在版本升级时需要事先删除数据目录的 templates 文件夹

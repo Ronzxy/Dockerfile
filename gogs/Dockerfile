@@ -30,7 +30,7 @@ RUN sed 's@^HostKey@\#HostKey@' -i /etc/ssh/sshd_config && \
 	echo "HostKey /data/ssh/ssh_host_ecdsa_key" >> /etc/ssh/sshd_config && \
 	echo "HostKey /data/ssh/ssh_host_ed25519_key" >> /etc/ssh/sshd_config
 
-ENV GOGS_CUSTOM /data
+ENV GOGS_DATA /data
 WORKDIR /gogs
 
 COPY gogs /gogs

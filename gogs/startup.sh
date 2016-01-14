@@ -2,43 +2,43 @@
 
 export GIT_SSL_NO_VERIFY=1
 
-if ! test -d $GOGS_CUSTOM/gogs
+if ! test -d $GOGS_DATA/gogs
 then
 	mkdir -p /var/run/sshd
-	mkdir -p $GOGS_CUSTOM/gogs/data $GOGS_CUSTOM/gogs/log
+	mkdir -p $GOGS_DATA/gogs/data $GOGS_DATA/gogs/log
 fi
 
-if ! test -d $GOGS_CUSTOM/conf
+if ! test -d $GOGS_DATA/conf
 then
-	mkdir -p $GOGS_CUSTOM/conf
+	mkdir -p $GOGS_DATA/conf
 fi
 
-if ! test -d $GOGS_CUSTOM/git
+if ! test -d $GOGS_DATA/git
 then
-	mkdir -p $GOGS_CUSTOM/git
+	mkdir -p $GOGS_DATA/git
 fi
 
-if ! test -d $GOGS_CUSTOM/ssh
+if ! test -d $GOGS_DATA/ssh
 then
-	mkdir $GOGS_CUSTOM/ssh
-	ssh-keygen -q -f $GOGS_CUSTOM/ssh/ssh_host_key -N '' -t rsa1
-	ssh-keygen -q -f $GOGS_CUSTOM/ssh/ssh_host_rsa_key -N '' -t rsa
-	ssh-keygen -q -f $GOGS_CUSTOM/ssh/ssh_host_dsa_key -N '' -t dsa
-	ssh-keygen -q -f $GOGS_CUSTOM/ssh/ssh_host_ecdsa_key -N '' -t ecdsa
-	ssh-keygen -q -f $GOGS_CUSTOM/ssh/ssh_host_ed25519_key -N '' -t ed25519
-	chown -R root:root $GOGS_CUSTOM/ssh/*
-	chmod 600 $GOGS_CUSTOM/ssh/*
+	mkdir $GOGS_DATA/ssh
+	ssh-keygen -q -f $GOGS_DATA/ssh/ssh_host_key -N '' -t rsa1
+	ssh-keygen -q -f $GOGS_DATA/ssh/ssh_host_rsa_key -N '' -t rsa
+	ssh-keygen -q -f $GOGS_DATA/ssh/ssh_host_dsa_key -N '' -t dsa
+	ssh-keygen -q -f $GOGS_DATA/ssh/ssh_host_ecdsa_key -N '' -t ecdsa
+	ssh-keygen -q -f $GOGS_DATA/ssh/ssh_host_ed25519_key -N '' -t ed25519
+	chown -R root:root $GOGS_DATA/ssh/*
+	chmod 600 $GOGS_DATA/ssh/*
 fi
 
 /etc/init.d/ssh start
 
 rm -rf /gogs/log /gogs/data /home/git
-ln -sf $GOGS_CUSTOM/gogs/log /gogs/log
-ln -sf $GOGS_CUSTOM/gogs/data /gogs/data
-ln -sf $GOGS_CUSTOM/git /home/git
+ln -sf $GOGS_DATA/gogs/log /gogs/log
+ln -sf $GOGS_DATA/gogs/data /gogs/data
+ln -sf $GOGS_DATA/git /home/git
 
-test -d $GOGS_CUSTOM/gogs/templates || cp -ar ./templates $GOGS_CUSTOM/gogs/
-rsync -rtv $GOGS_CUSTOM/gogs/templates/ ./templates/
+test -d $GOGS_DATA/gogs/templates || cp -ar ./templates $GOGS_DATA/gogs/
+rsync -rtv $GOGS_DATA/gogs/templates/ ./templates/
 
 if ! test -d /home/git/.ssh
 then

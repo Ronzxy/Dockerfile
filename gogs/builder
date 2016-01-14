@@ -26,6 +26,7 @@ if [ ! -s $GOGS_FILE ]; then
     mv linux_amd64.tar.gz $GOGS_FILE || exit 1
 fi
 
-tar xvf $GOGS_FILE
+# 删除旧文件并解开压缩包
+rm -rf gogs && tar xvf $GOGS_FILE
 
 docker build -t gogs:$VERSION $WORK_DIR
