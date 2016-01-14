@@ -47,6 +47,8 @@ then
 	chown -R git:git /home/git
 fi
 
-chown -R git:git /data
+chown -R git:git $GOGS_DATA
+# 指定GOGS自定义数据目录
+export GOGS_CUSTOM=$GOGS_DATA
 
 exec su git -c "export GIT_SSL_NO_VERIFY=1;./gogs web"
