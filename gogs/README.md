@@ -13,11 +13,11 @@ chmod 755 builder
 
 # 创建容器
 ```shell
-docker run --name gogs_inst1 \
+docker run --name gogs \
 -p 10022:22 \
 -p 3000:3000 \
--v /data/run/docker/gogs_inst1/data:/data \
--d gogs:0.8.10
+-v /data/run/docker/gogs/data:/data \
+-d gogs:0.8.25.0129
 ```
 
 # 版本升级

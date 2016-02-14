@@ -6,27 +6,34 @@
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 export PATH
 
-
-DEFAULT_VERSION=0.8.10
-
-read -p "Please enter the version you want to install (default $DEFAULT_VERSION):" VERSION
-if [ "$VERSION" = "" ]; then
-  VERSION=$DEFAULT_VERSION
-fi
-
 WORK_DIR=$(pwd)
-GOGS_URL=https://github.com/gogits/gogs/releases/download/v$VERSION/linux_amd64.tar.gz
-GOGS_FILE=gogs-v$VERSION-linux_amd64.tar.gz
+GOGS_FILE=linux_amd64.tar.gz
 
-sudo apt-get update && \
-    apt-get install -y wget
-
+# 如果存在linux_amd64.tar.gz则安装linux_amd64.tar.gz
 if [ ! -s $GOGS_FILE ]; then
-    wget -c $GOGS_URL || exit 1
-    mv linux_amd64.tar.gz $GOGS_FILE || exit 1
+    DEFAULT_VERSION=0.8.25
+
+    read -p "Please enter the version you want to install (default $DEFAULT_VERSION):" VERSION
+    if [ "$VERSION" = "" ]; then
+    VERSION=$DEFAULT_VERSION
+    fi
+    
+    GOGS_URL=https://github.com/gogits/gogs/releases/download/v$VERSION/$GOGS_FILE
+    # GOGS_FILE=gogs-v$VERSION-linux_amd64.tar.gz
+    
+    if [ ! -s $GOGS_FILE ]; then
+        # 检测安装wget
+        which wget > /dev/null || \
+            sudo apt-get update
+        which wget > /dev/null || \
+            sudo apt-get install -y wget
+        wget -c $GOGS_URL || exit 1
+    fi
 fi
 
 # 删除旧文件并解开压缩包
 rm -rf gogs && tar xvf $GOGS_FILE
+
+VERSION=$(gogs/gogs -v | awk '{print $3}')
 
 docker build -t gogs:$VERSION $WORK_DIR
