@@ -6,15 +6,15 @@
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 export PATH
 
-DEFAULT_VERSION=1.8.0
+DEFAULT_VERSION=1.10.0
 
 read -p "Please enter the version you want to install (default $DEFAULT_VERSION):" VERSION
 if [ "$VERSION" = "" ]; then
   VERSION=$DEFAULT_VERSION
 fi
 
-apt-get update
-apt-get install -y wget
+sudo apt-get update
+sudo apt-get install -y wget
 
 WORK_DIR=$(pwd)
 PREFIX=/usr
@@ -27,7 +27,7 @@ if [ -s $NGINX_FILE ]; then
     wget -c $NGINX_URL || exit 1
 fi
 
-apt-get install -y gcc g++ make patch libpcre3-dev zlib1g-dev libssl-dev libjemalloc-dev
+sudo apt-get install -y gcc g++ make patch libpcre3-dev zlib1g-dev libssl-dev libjemalloc-dev
 
 tar zxvf $NGINX_FILE
 cd nginx-$VERSION
