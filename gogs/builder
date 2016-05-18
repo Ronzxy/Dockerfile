@@ -15,11 +15,10 @@ if [ ! -s $GOGS_FILE ]; then
 
     read -p "Please enter the version you want to install (default $DEFAULT_VERSION):" VERSION
     if [ "$VERSION" = "" ]; then
-    VERSION=$DEFAULT_VERSION
+        VERSION=$DEFAULT_VERSION
     fi
     
     GOGS_URL=https://github.com/gogits/gogs/releases/download/v$VERSION/$GOGS_FILE
-    # GOGS_FILE=gogs-v$VERSION-linux_amd64.tar.gz
     
     if [ ! -s $GOGS_FILE ]; then
         # 检测安装wget
