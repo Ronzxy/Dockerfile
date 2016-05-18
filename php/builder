@@ -1,0 +1,38 @@
+#!/bin/sh
+# Auto build php docker image.
+# Powered by cr: zhangchaoren@openeasy.net
+
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+export PATH
+
+DEFAULT_VERSION=7.0.6
+
+read -p "Please enter the version you want to install (default $DEFAULT_VERSION):" VERSION
+if [ "$VERSION" = "" ]; then
+  VERSION=$DEFAULT_VERSION
+fi
+
+# 检查运行期间需要的工具是否安装
+which wget > /dev/null && which xz > /dev/null \
+|| sudo apt-get update
+which wget > /dev/null && which xz > /dev/null \
+|| sudo apt-get install -y wget xz-utils
+
+WORK_DIR=$(pwd)
+PHP_FILE=php-$VERSION.tar.xz
+PHP_URL=http://cn2.php.net/distributions/$PHP_FILE
+
+if [ -s $PHP_FILE ]; then
+    echo "tar xvf $PHP_FILE"
+  else
+    wget -c $PHP_URL || exit 1
+fi
+
+tar xvf $PHP_FILE
+
+rm -rf docker-build-sources
+mv php-$VERSION docker-build-sources
+
+docker build -t php:$VERSION $WORK_DIR
+
+rm -rf docker-build-sources
