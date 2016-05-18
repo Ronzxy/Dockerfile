@@ -143,6 +143,12 @@ cp /etc/php/php-fpm.conf.default /etc/php/php-fpm.conf
 cp /etc/php/php-fpm.d/www.conf.default /etc/php/php-fpm.d/www.conf
 mkdir -p /etc/php.d
 
+# 安装运行依赖包
+apt-get install -y libx11-6 libxpm4 libsnmp30 libfreetype6 libcurl3-gnutls libxml2 libc-client2007e \
+libtidy-0.99-0 libmcrypt4 libkrb5-3 libxslt1.1 libjpeg62-turbo icu-devtools unixodbc \
+libpq5 libsqlite3-0 mysql-common libmysqlclient18
+
+# 清除编译依赖包
 apt-get purge -y gcc g++ make autoconf pkg-config \
 libjpeg-dev libpng12-dev zlib1g-dev libxml2-dev libssl-dev libbison-dev libpcre3-dev libbz2-dev \
 libcurl4-gnutls-dev libxpm-dev libfreetype6-dev libgmp3-dev libc-client-dev libkrb5-dev \
@@ -150,6 +156,7 @@ libicu-dev libldap2-dev libsasl2-dev libmcrypt-dev unixodbc-dev libsnmp-dev libt
 libpq-dev libmysqlclient-dev libsqlite3-dev
 
 apt-get autoclean
+apt-get autoremove
 rm -rf /var/lib/apt/lists/*
 
 cd $WORK_DIR
