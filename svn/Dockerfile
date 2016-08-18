@@ -14,6 +14,7 @@ RUN apt-get update && \
 
 
 ENV SVN_BASE /data
+ENV SVN_LOGS /logs
 
 # 添加用户
 RUN groupadd -r svn && \
