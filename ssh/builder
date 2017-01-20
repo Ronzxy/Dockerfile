@@ -1,0 +1,13 @@
+#!/bin/sh
+# Gogs auto docker under debian
+# Powered by cr: zhangchaoren@openeasy.net
+
+
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+export PATH
+
+WORK_DIR=$(pwd)
+
+VERSION=debian-jessie
+
+docker build -t ssh:$VERSION $WORK_DIR
