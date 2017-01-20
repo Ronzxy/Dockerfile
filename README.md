@@ -1,241 +1,109 @@
-Dockerfile
-==========
-Dockerfile是一个镜像的表示，可以通过Dockerfile来描述构建镜像的步骤，并自动构建一个容器。
+Docker Official
+====
 
-所有的 Dockerfile 命令格式都是:
+docker 官方镜像使用及配置
+
+# 初始化环境 #
+
+## 安装Docker ##
 ```sh
-INSTRUCTION arguments
+curl -sSL https://get.docker.com | sh
 ```
 
-虽然指令忽略大小写，但是建议使用大写。
+# 操作命令 #
 
-### FROM 命令
-
+## 获取 FULL CONTAINER ID
 ```sh
-FROM <image>
-```
-或
-```sh
-FROM <image>:<tag>
+docker inspect -f '{{.Id}}' SHORT_CONTAINER_ID || CONTAINER_NAME
 ```
 
-这个设置基本的镜像，为后续的命令使用，所以应该作为Dockerfile的第一条指令。
+## 复制 ##
 
-比如:
+### 1. 从 container 到 主机（host）
+使用 docker cp 命令
 ```sh
-FROM ubuntu
+　　docker cp <SHORT_CONTAINER_ID || CONTAINER_NAME>:/PATH/TO/FILE/WITHIN/CONTAINER /PATH/TO/FILE
+```
+ 
+### 2. 从 主机（host） 到 container
+```sh
+# 获取 FULL CONTAINER ID
+# 1. Aufs
+sudo cp PATH/TO/FILE /var/lib/docker/aufs/mnt/${FULL_CONTAINER_ID}/PATH/TO/FILE
+
+# 2. Btrfs
+sudo cp PATH/TO/FILE /var/lib/docker/btrfs/subvolumes/${FULL_CONTAINER_ID}/PATH/TO/FILE
 ```
 
-如果没有指定 tag ，则默认tag是latest，如果都没有则会报错。
 
-### RUN 命令
-RUN命令会在上面FROM指定的镜像里执行任何命令，然后提交(commit)结果，提交的镜像会在后面继续用到。
+# 高级配置 #
 
-两种格式:
+## 限制CPU ##
 ```sh
-RUN <command> (the command is run in a shell - `/bin/sh -c`)
-```
-或:
-```sh
-RUN ["executable", "param1", "param2" ... ]  (exec form)
-```
-RUN命令等价于:
-```sh
-docker run image command
-docker commit container_id
+--cpu-shares=512   # CPU配额，默认最大值1024。简称 -c
+--cpuset-cpus=0,1  # 指定使用的CPU核心编号，1.6及以下版本是--cpuset
 ```
 
-### 注释
-
-使用 # 作为注释
-
-如:
+## 限制内存 ##
+限制内存后超出使用限制会OOMKilled进程
 ```sh
-# Nginx
+--memory=100m      # 限制内存(mem+swap) -m
+--memory-swap=-1   # 限制swap+内存，关闭swap为-1
+```
+
+## 关闭OOMKilled ##
+```sh
+--oom-kill-disable=true
+```
+
+## 自动重启 ##
+```sh
+#   使用在 Docker run 的时候使用 --restart 参数来设置。
+#   
+#   no          - container不重启
+#   on-failure  - container推出状态非0时重启
+#   always      - 始终重启
 #
-# VERSION   1.9.9
+# https://docs.docker.com/reference/commandline/cli/#restart-policies
 
-# Use the debian jessie as base image
-FROM debian:jessie
-
-# Make sure the package repository is up to date
-RUN echo "deb http://mirrors.163.com/debian/ jessie main" > /etc/apt/sources.list
+--restart=always
 ```
 
-### MAINTAINER 命令
+## 网络模式 ##
 ```sh
-MAINTAINER <name>
+--net=bridge、host、container、none
 ```
-MAINTAINER命令用来指定维护者的姓名和联系方式
 
-如:
-
+## 设置DNS ##
 ```sh
-MAINTAINER NGINX Docker Maintainers "zhangchaoren@openeasy.net"
+--dns=8.8.8.8
+--dns=4.4.4.4
 ```
 
-### ENTRYPOINT 命令
 
-有两种语法格式，一种就是上面的(shell方式):
 
+# 疑难问题 #
+
+## 内存限制无效 ##
 ```sh
-ENTRYPOINT cmd param1 param2 ...
+#   On systems using GRUB (which is the default for Ubuntu), 
+#   you can add those parameters by editing /etc/default/grub 
+#   and extending GRUB_CMDLINE_LINUX. Look for the following line:
+#   
+#   $ GRUB_CMDLINE_LINUX=""
+#   And replace it by the following one:
+#   
+#   $ GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"
+#   Then run sudo update-grub, and reboot.
+#   
+#   These parameters will help you get rid of the following warnings:
+#   
+#   WARNING: Your kernel does not support cgroup swap limit.
+#   WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.
+
+
+vim /etc/default/grub
+# GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"
+sudo update-grub
+reboot
 ```
-
-第二种是 exec 格式:
-```sh
-ENTRYPOINT ["cmd", "param1", "param2"...]
-```
-
-如:
-```sh
-ENTRYPOINT ["echo", "Whale you be my container"]
-```
-
-ENTRYPOINT 命令设置在容器启动时执行命令
-```
-# cat Dockerfile
-FROM debian
-ENTRYPOINT echo "Welcome!"
-
-# docker run 62fda5e450d5
-Welcome!
-```
-
-### USER 命令
-
-比如指定 memcached 的运行用户，可以使用上面的 ENTRYPOINT 来实现:
-```sh
-ENTRYPOINT ["memcached", "-u", "daemon"]
-```
-更好的方式是：
-```sh
-ENTRYPOINT ["memcached"]
-USER daemon
-```
-
-### EXPOSE 命令
-
-EXPOSE 命令可以设置一个端口在运行的镜像中暴露在外
-```sh
-EXPOSE <port> [<port>...]
-```
-比如 Nginx 使用端口 80 和 443 可以把这俩个端口暴露在外，这样容器外可以看到这个端口并与其通信。
-```sh
-EXPOSE 80 443
-```
-一个完整的例子:
-```sh
-# Nginx
-#
-# VERSION   1.9.9
-
-# Use the debian jessie as base image
-FROM debian:jessie
-
-# Make sure the package repository is up to date
-RUN echo "deb http://mirrors.163.com/debian/ jessie main" > /etc/apt/sources.list
-
-# 安装依赖包
-RUN apt-get update && \
-    apt-get install -y libpcre3 zlib1g libssl1.0.0 libjemalloc1 && \
-    apt-get autoclean && \
-    apt-get autoremove && \
-    rm -rf /var/lib/apt/lists/*
-
-# 添加用户
-RUN groupadd -r www && \
-    useradd -r -g www www -d /opt/www -s /sbin/nologin
-
-WORKDIR /
-
-# 复制数据
-COPY nginx/sbin/nginx /usr/sbin/
-COPY nginx/conf /etc/nginx
-COPY nginx/html /usr/html
-COPY startup.sh /
-
-RUN chmod 755 /startup.sh
-
-EXPOSE 80 443
-
-CMD ["./startup.sh"]
-```
-Linux 更新镜像，国内建议换成163或sohu的源，不然太慢了。
-
-### ENV 命令
-
-用于设置环境变量
-```sh
-ENV <key> <value>
-```
-设置了后，后续的RUN命令都可以使用
-
-使用此dockerfile生成的image新建container，可以通过 docker inspect 看到这个环境变量:
-```sh
-# docker inspect <container_name>
-    ...
-    "Env": [
-        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-        "ROOT_DATA=/data"
-    ],
-    ...
-```
-里面的GOGS_DATA=/data就是设置的。
-
-也可以通过在docker run时设置或修改环境变量:
-```sh
-docker run -i -t --env ROOT_DATA=/data debian:jessie /bin/bash
-```
-
-### ADD 命令
-
-从src复制文件到container的dest路径:
-```sh
-ADD <src> <dest>
-
-<src> 是相对被构建的源目录的相对路径，可以是文件或目录的路径，也可以是一个远程的文件url
-<dest> 是container中的绝对路径
-```
-
-### VOLUME 命令
-```sh
-VOLUME ["<mountpoint>"]
-```
-如:
-```sh
-VOLUME ["/data"]
-```
-创建一个挂载点用于共享目录
-
-
-### WORKDIR 命令
-```sh
-WORKDIR /path/to/workdir
-```
-配置RUN, CMD, ENTRYPOINT 命令设置当前工作路径
-
-可以设置多次，如果是相对路径，则相对前一个 WORKDIR 命令
-
-比如:
-```sh
-WORKDIR /a WORKDIR b WORKDIR c RUN pwd
-```
-其实是在 /a/b/c 下执行 pwd
-
-### CMD 命令
-
-有三种格式:
-```sh
-CMD ["executable","param1","param2"] (like an exec, preferred form)
-CMD ["param1","param2"] (as default parameters to ENTRYPOINT)
-CMD command param1 param2 (as a shell)
-```
-一个Dockerfile里只能有一个CMD，如果有多个，只有最后一个生效。
-
-The main purpose of a CMD is to provide defaults for an executing container. These defaults can include an executable, or they can omit the executable, in which case you must specify an ENTRYPOINT as well.
-
-### 总结
-
-基本常用的命令是: FROM, MAINTAINER, RUN, ENTRYPOINT, USER, PORT, ADD
-
