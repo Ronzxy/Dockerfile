@@ -2,14 +2,9 @@
 # vsftpd auto docker in debian
 # Powered by cr: zhangchaoren@openeasy.net
 
-# db_load -T -t hash -f /etc/vsftpd/users /etc/vsftpd/user.db
+# db_load -T -t hash -f /etc/vsftpd/user.list /etc/vsftpd/user.db
 
 WORK_DIR=$(pwd)
-DEFAULT_VERSION=debian-jessie
-
-read -p "Please enter the version you want to install (default $DEFAULT_VERSION):" VERSION
-if [ "$VERSION" = "" ]; then
-  VERSION=$DEFAULT_VERSION
-fi
+VERSION=debian-jessie
 
 docker build -t vsftpd:$VERSION $WORK_DIR
