@@ -19,9 +19,8 @@ RUN groupadd -r www && \
 WORKDIR /
 
 # 复制数据
-COPY nginx/sbin/nginx /usr/sbin/
-COPY nginx/conf /etc/nginx
-COPY nginx/html /usr/html
+COPY nginx /nginx
+COPY conf /conf
 COPY startup.sh /
 
 RUN chmod 755 /startup.sh

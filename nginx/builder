@@ -6,7 +6,7 @@
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 export PATH
 
-DEFAULT_VERSION=1.10.0
+DEFAULT_VERSION=1.10.3
 
 read -p "Please enter the version you want to install (default $DEFAULT_VERSION):" VERSION
 if [ "$VERSION" = "" ]; then
