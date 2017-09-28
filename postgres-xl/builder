@@ -1,0 +1,277 @@
+#!/bin/bash
+
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+export LANG=zh_CN.UTF-8
+
+WORK_HOME=$(pwd)
+BUILD_PATH=$WORK_HOME"/dist/postgres"
+USER="postgres"
+GROUP="postgres"
+VERSION=9.5r1.6
+# 探测cpu核心数
+if [ -f /proc/cpuinfo ]; then
+    j="-j$(grep 'model name' /proc/cpuinfo | wc -l || 1)"
+fi
+# PG ENV
+PGHOME="/app/postgres"
+PGDATA="$PGHOME/data"
+# Node type: gtm/gtm_proxy/coordinator/datanode
+PGNODE="datanode"
+# Node name like pgdata01
+PGNAME="pgxl_coord01"
+# Gtm host
+PGHOST="localhost"
+# Gtm port
+PGPORT=6666
+
+check_source_file() {
+    if [ -s uuid-1.6.2.tar.gz ]; then
+        echo "uuid-1.6.2.tar.gz [found]"
+      else
+        wget -c ftp://ftp.ossp.org/pkg/lib/uuid/uuid-1.6.2.tar.gz || exit 1
+    fi
+
+    if [ -s postgres-xl-${VERSION}.tar.bz2 ]; then
+        echo "postgres-xl-${VERSION}.tar.bz2 [found]"
+      else
+        wget -c https://www.postgres-xl.org/downloads/postgres-xl-${VERSION}.tar.bz2 || exit 1
+    fi
+}
+
+check_build_tools() {
+    dpkg -V gcc g++ make patch wget || INST_DEPS=true
+
+    if [ $INST_DEPS ]; then
+        sudo apt update
+
+        # 安装编译工具
+        sudo apt install -y gcc g++ make patch wget
+    fi
+}
+
+check_inst_deps() {
+    dpkg -V gcc g++ make patch wget \
+        libreadline-dev libpam0g-dev libxml2-dev libxslt1-dev \
+        libperl-dev libpython-dev zlib1g-dev libssl-dev gettext bison flex || INST_DEPS=true
+
+    if [ $INST_DEPS ]; then
+        sudo apt update
+
+        # 安装编译工具
+        sudo apt install -y gcc g++ make patch wget
+
+        # 安装pgxc依赖
+        sudo apt install -y libreadline-dev libpam0g-dev libxml2-dev libxslt1-dev \
+        libperl-dev libpython-dev zlib1g-dev libssl-dev gettext bison flex 
+    fi
+}
+
+build_pgxl() {
+    # 检查安装依赖
+    # check_inst_deps
+
+    # 检查是否存在已经编译好的 pgxc 程序包
+    if [ -f "$WORK_HOME/dist/postgres-xl_${VERSION}.tgz" ]; then
+        printf "Found packge file $WORK_HOME/dist/postgres-xl_${VERSION}.tgz\n"
+        printf "Decompression...\n"
+        tar xf "$WORK_HOME/dist/postgres-xl_${VERSION}.tgz" -C "$WORK_HOME/dist"
+        printf "Decompression is complate.\n"
+    else
+        # 没有二进制程序，开始编译
+        check_source_file 
+        check_build_tools
+
+        cd $WORK_HOME
+        tar xvf uuid-1.6.2.tar.gz
+        cd uuid-1.6.2
+        ./configure --prefix=$BUILD_PATH
+        make $j
+        make install
+
+        cd $WORK_HOME
+        tar xvf postgres-xl-${VERSION}.tar.bz2
+        cd postgres-xl-${VERSION}
+        ./configure --prefix=$BUILD_PATH \
+        --enable-nls="zh_CN zh_TW" \
+        --with-perl \
+        --with-python \
+        --with-openssl \
+        --with-pam \
+        --without-ldap \
+        --with-libxslt \
+        --with-libxml \
+        --enable-thread-safety \
+        --with-zlib \
+        --with-ossp-uuid \
+        --with-libs=$BUILD_PATH/lib/ \
+        --with-includes=$BUILD_PATH/include/
+
+        # 编译内核
+        echo "Start compiling pgxl..."
+        make $j
+        make install
+        # 编译外围模块
+        echo "Start compiling contrib..."
+        cd contrib
+        make $j
+        make install
+        # 编译隔离测试脚本
+        #echo "Start compiling test isolation..."
+        #cd $WORK_HOME/postgres-xl-${VERSION}/src/test/isolation
+        #make $j
+        #make install
+
+        # 编译完成开始打包
+        if [ ! -f "$BUILD_PATH/bin/postgres" ]; then
+            cd $WORK_HOME/dist
+            tar zcvf postgres-xl_${VERSION}.tgz postgres
+        fi
+    fi
+}
+
+read_pgxl_env() {
+    # PGHOME
+    TMP_VAR=$PGHOME
+    printf "请输入应用安装位置 (默认 $TMP_VAR):\\n"
+    read PGHOME
+    if [ "$PGHOME" = "" ]; then
+        PGHOME=$TMP_VAR
+    fi
+
+    if [ ! -f $PGHOME/PGXL_ENV ]; then
+
+        # PGDATA
+        TMP_VAR="$PGHOME/data"
+        printf "请输入数据存储路径 (默认 $TMP_VAR):\\n"
+        read PGDATA
+        if [ "$PGDATA" = "" ]; then
+            PGDATA=$TMP_VAR
+        fi
+
+        # PGNODE
+        NODE_TYPE=(gtm gtm_proxy coordinator datanode)
+        TMP_VAR=$PGNODE
+        printf "请输入 PGXL 节点类型，如${NODE_TYPE[*]} (默认 $TMP_VAR):\\n"
+        read PGNODE
+        if [ "$PGNODE" = "" ]; then
+            PGNODE=$TMP_VAR
+        fi
+
+        for VAR in ${NODE_TYPE[@]}
+        do
+            if [ "$PGNODE" != "$VAR" ]; then
+                TMP_VAR=""
+            else
+                TMP_VAR=$PGNODE
+                break
+            fi
+        done
+
+        if [ "$TMP_VAR" != "$PGNODE" ]; then
+            echo "节点类型必须是 ${NODE_TYPE[@]}"
+            exit 1
+        fi
+
+        # PGNAME
+        TMP_VAR=$PGNAME
+        printf "请输入 PGXL 节点名称 (默认 $TMP_VAR):\\n"
+        read PGNAME
+        if [ "$PGNAME" = "" ]; then
+            PGNAME=$TMP_VAR
+        fi
+
+        # PGHOST
+        TMP_VAR=$PGHOST
+        printf "请输入 GTM 服务地址 (默认 $TMP_VAR):\\n"
+        read PGHOST
+        if [ "$PGHOST" = "" ]; then
+            PGHOST=$TMP_VAR
+        fi
+
+        # PGPORT
+        TMP_VAR=$PGPORT
+        printf "请输入 GTM 服务端口 (默认 $TMP_VAR):\\n"
+        read PGPORT
+        if [ "$PGPORT" = "" ]; then
+            PGPORT=$TMP_VAR
+        fi
+
+        mkdir -p $PGHOME
+        touch $PGHOME/PGXL_ENV || exit 1
+        printf "#\\n# 本文件保存 PGXL 的环境信息.\\n#\\n" >> $PGHOME/PGXL_ENV
+        printf "# 请不要删除这个文件.\\n\\n" >> $PGHOME/PGXL_ENV
+        printf "# PGXL 安装目录\\n" >> $PGHOME/PGXL_ENV
+        printf "PGHOME=$PGHOME\\n" >> $PGHOME/PGXL_ENV
+        printf "# PGXL 数据目录\\n" >> $PGHOME/PGXL_ENV
+        printf "PGDATA=$PGDATA\\n" >> $PGHOME/PGXL_ENV
+        printf "# PGXL 节点类型，包含 gtm/gtm_proxy/coordinator/datanode\\n" >> $PGHOME/PGXL_ENV
+        printf "PGNODE=$PGNODE\\n" >> $PGHOME/PGXL_ENV
+        printf "# PGXL 节点名称，如 pgxl_coord01\\n" >> $PGHOME/PGXL_ENV
+        printf "PGNAME=$PGNAME\\n" >> $PGHOME/PGXL_ENV
+        printf "# GTM 服务地址\\n" >> $PGHOME/PGXL_ENV
+        printf "PGHOST=$PGHOST\\n" >> $PGHOME/PGXL_ENV
+        printf "# GTM 服务端口\\n" >> $PGHOME/PGXL_ENV
+        printf "PGPORT=$PGPORT\\n" >> $PGHOME/PGXL_ENV
+    else
+        # Get env in $PGHOME/PGXL_ENV
+        PGHOME=$(grep 'PGHOME' $PGHOME/PGXL_ENV | awk -F '=' '{print $2}')
+        # PGDATA
+        PGDATA=$(grep 'PGDATA' $PGHOME/PGXL_ENV | awk -F '=' '{print $2}')
+        # Node type: gtm/gtm_proxy/coordinator/datanode
+        PGNODE=$(grep 'PGNODE' $PGHOME/PGXL_ENV | awk -F '=' '{print $2}')
+        # Node name like pgdata01
+        PGNAME=$(grep 'PGNAME' $PGHOME/PGXL_ENV | awk -F '=' '{print $2}')
+        # Gtm host
+        PGHOST=$(grep 'PGHOST' $PGHOME/PGXL_ENV | awk -F '=' '{print $2}')
+        # Gtm port
+        PGPORT=$(grep 'PGPORT' $PGHOME/PGXL_ENV | awk -F '=' '{print $2}')
+    fi
+}
+
+case "$1" in
+    install)
+        # 检查是否为 root 用户
+        if [ "$(id -u)" != "0" ]; then
+            echo "Error: Please use the root user to execute this shell."
+            exit 1
+        fi
+
+        TMP_VAR=$VERSION
+        printf "请输入要安装的版本 (默认 $TMP_VAR):\\n"
+        read VERSION
+        if [ "$VERSION" = "" ]; then
+            VERSION=$TMP_VAR
+        fi
+
+        build_pgxl
+        read_pgxl_env
+
+        groupadd -g 1300 $USER > /dev/null 2>&1
+        useradd -u 1300 -g $USER $GROUP -m -d /home/$USER -s /bin/bash > /dev/null 2>&1
+
+        cp -r $BUILD_PATH/* $PGHOME
+        cp $WORK_HOME/startup.sh $PGHOME
+        chmod 755 $PGHOME/startup.sh
+
+        $PGHOME/startup.sh init
+
+        exit 0
+        ;;
+    docker)
+        TMP_VAR=$VERSION
+        printf "请输入要安装的版本 (默认 $TMP_VAR):\\n"
+        read VERSION
+        if [ "$VERSION" = "" ]; then
+            VERSION=$TMP_VAR
+        fi
+
+        build_pgxl
+
+        docker build -t postgres-xl:$VERSION $WORK_HOME
+        exit 0
+        ;;
+    *)
+        echo $"Usage: {install | docker}"
+        exit 1
+        ;;
+esac
