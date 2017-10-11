@@ -2,14 +2,14 @@ Dockerfile
 ==========
 Dockerfile是一个镜像的表示，可以通过Dockerfile来描述构建镜像的步骤，并自动构建一个容器。
 
-所有的 Dockerfile 命令格式都是:
+所有的 Dockerfile 指令格式都是:
 ```sh
 INSTRUCTION arguments
 ```
 
 虽然指令忽略大小写，但是建议使用大写。
 
-### FROM 命令
+### FROM 指令
 
 ```sh
 FROM <image>
@@ -19,7 +19,7 @@ FROM <image>
 FROM <image>:<tag>
 ```
 
-这个设置基本的镜像，为后续的命令使用，所以应该作为Dockerfile的第一条指令。
+这个设置基本的镜像，为后续的指令使用，所以应该作为Dockerfile的第一条指令。
 
 比如:
 ```sh
@@ -28,8 +28,8 @@ FROM ubuntu
 
 如果没有指定 tag ，则默认tag是latest，如果都没有则会报错。
 
-### RUN 命令
-RUN命令会在上面FROM指定的镜像里执行任何命令，然后提交(commit)结果，提交的镜像会在后面继续用到。
+### RUN 指令
+RUN指令会在上面FROM指定的镜像里执行任何指令，然后提交(commit)结果，提交的镜像会在后面继续用到。
 
 两种格式:
 ```sh
@@ -39,7 +39,7 @@ RUN <command> (the command is run in a shell - `/bin/sh -c`)
 ```sh
 RUN ["executable", "param1", "param2" ... ]  (exec form)
 ```
-RUN命令等价于:
+RUN指令等价于:
 ```sh
 docker run image command
 docker commit container_id
@@ -62,11 +62,11 @@ FROM debian:jessie
 RUN echo "deb http://mirrors.163.com/debian/ jessie main" > /etc/apt/sources.list
 ```
 
-### MAINTAINER 命令
+### MAINTAINER 指令
 ```sh
 MAINTAINER <name>
 ```
-MAINTAINER命令用来指定维护者的姓名和联系方式
+MAINTAINER指令用来指定维护者的姓名和联系方式
 
 如:
 
@@ -74,7 +74,7 @@ MAINTAINER命令用来指定维护者的姓名和联系方式
 MAINTAINER NGINX Docker Maintainers "zhangchaoren@openeasy.net"
 ```
 
-### ENTRYPOINT 命令
+### ENTRYPOINT 指令
 
 有两种语法格式，一种就是上面的(shell方式):
 
@@ -92,7 +92,7 @@ ENTRYPOINT ["cmd", "param1", "param2"...]
 ENTRYPOINT ["echo", "Whale you be my container"]
 ```
 
-ENTRYPOINT 命令设置在容器启动时执行命令
+ENTRYPOINT 指令设置在容器启动时执行指令
 ```
 # cat Dockerfile
 FROM debian
@@ -102,7 +102,7 @@ ENTRYPOINT echo "Welcome!"
 Welcome!
 ```
 
-### USER 命令
+### USER 指令
 
 比如指定 memcached 的运行用户，可以使用上面的 ENTRYPOINT 来实现:
 ```sh
@@ -114,9 +114,9 @@ ENTRYPOINT ["memcached"]
 USER daemon
 ```
 
-### EXPOSE 命令
+### EXPOSE 指令
 
-EXPOSE 命令可以设置一个端口在运行的镜像中暴露在外
+EXPOSE 指令可以设置一个端口在运行的镜像中暴露在外
 ```sh
 EXPOSE <port> [<port>...]
 ```
@@ -163,13 +163,13 @@ CMD ["./startup.sh"]
 ```
 Linux 更新镜像，国内建议换成163或sohu的源，不然太慢了。
 
-### ENV 命令
+### ENV 指令
 
 用于设置环境变量
 ```sh
 ENV <key> <value>
 ```
-设置了后，后续的RUN命令都可以使用
+设置了后，后续的RUN指令都可以使用
 
 使用此dockerfile生成的image新建container，可以通过 docker inspect 看到这个环境变量:
 ```sh
@@ -188,17 +188,40 @@ ENV <key> <value>
 docker run -i -t --env ROOT_DATA=/data debian:jessie /bin/bash
 ```
 
-### ADD 命令
+### ADD 指令
 
-从src复制文件到container的dest路径:
+ADD指令的功能是将主机构建环境（上下文）目录中的文件和目录、以及一个URL标记的文件拷贝到镜像中。
+其格式是：
+
 ```sh
 ADD <src> <dest>
-
-<src> 是相对被构建的源目录的相对路径，可以是文件或目录的路径，也可以是一个远程的文件url
-<dest> 是container中的绝对路径
 ```
 
-### VOLUME 命令
+有如下注意事项：
+
+1、如果源路径是个文件，且目标路径是以 / 结尾， 则docker会把目标路径当作一个目录，会把源文件拷贝到该目录下。
+
+如果目标路径不存在，则会自动创建目标路径。
+
+2、如果源路径是个文件，且目标路径是不是以 / 结尾，则docker会把目标路径当作一个文件。
+
+如果目标路径不存在，会以目标路径为名创建一个文件，内容同源文件；
+
+如果目标文件是个存在的文件，会用源文件覆盖它，当然只是内容覆盖，文件名还是目标文件名。
+
+如果目标文件实际是个存在的目录，则会源文件拷贝到该目录下。 注意，这种情况下，最好显示的以 / 结尾，以避免混淆。
+
+3、如果源路径是个目录，且目标路径不存在，则docker会自动以目标路径创建一个目录，把源路径目录下的文件拷贝进来。
+
+如果目标路径是个已经存在的目录，则docker会把源路径目录下的文件拷贝到该目录下。
+
+4、如果源文件是个归档文件（压缩文件），则docker会自动帮解压。
+
+### COPY 指令
+
+COPY指令和ADD指令功能和使用方式类似。只是COPY指令不会做自动解压工作。
+
+### VOLUME 指令
 ```sh
 VOLUME ["<mountpoint>"]
 ```
@@ -209,13 +232,13 @@ VOLUME ["/data"]
 创建一个挂载点用于共享目录
 
 
-### WORKDIR 命令
+### WORKDIR 指令
 ```sh
 WORKDIR /path/to/workdir
 ```
-配置RUN, CMD, ENTRYPOINT 命令设置当前工作路径
+配置RUN, CMD, ENTRYPOINT 指令设置当前工作路径
 
-可以设置多次，如果是相对路径，则相对前一个 WORKDIR 命令
+可以设置多次，如果是相对路径，则相对前一个 WORKDIR 指令
 
 比如:
 ```sh
@@ -223,7 +246,7 @@ WORKDIR /a WORKDIR b WORKDIR c RUN pwd
 ```
 其实是在 /a/b/c 下执行 pwd
 
-### CMD 命令
+### CMD 指令
 
 有三种格式:
 ```sh
@@ -237,5 +260,5 @@ The main purpose of a CMD is to provide defaults for an executing container. The
 
 ### 总结
 
-基本常用的命令是: FROM, MAINTAINER, RUN, ENTRYPOINT, USER, PORT, ADD
+基本常用的指令是: FROM, MAINTAINER, RUN, ENTRYPOINT, USER, PORT, ADD
 
