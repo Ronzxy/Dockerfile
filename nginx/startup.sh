@@ -1,12 +1,11 @@
 #!/bin/bash
 
 if [ ! -f "/usr/sbin/nginx" ]; then
-    cp /nginx/sbin/nginx /usr/sbin/
+    cp /nginx/sbin/nginx /usr/sbin
 fi
 
 if [ ! -f "/etc/nginx/nginx.conf" ]; then
-    cp -r /nginx/conf/* /etc/nginx/
-    cp -r /conf/* /etc/nginx/
+    cp -r /nginx/conf/* /etc/nginx
 fi
 
 if [ ! -d "/usr/html" ]; then
