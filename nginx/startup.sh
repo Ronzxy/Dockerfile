@@ -9,7 +9,7 @@ if [ ! -f "/etc/nginx/nginx.conf" ]; then
 fi
 
 if [ ! -d "/usr/html" ]; then
-    cp -r /nginx/html /usr/html
+    cp -r /nginx/html /home/www/html
 fi
 
 # 创建目录及修改权限

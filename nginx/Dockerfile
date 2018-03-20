@@ -21,8 +21,8 @@ RUN echo "export PATH=$PGHOME/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/
 RUN echo "Asia/Shanghai" >> /etc/timezone && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 
 # 添加用户
-RUN groupadd -r www && \
-    useradd -r -g www www -d /home/www -s /sbin/nologin
+RUN groupadd -r -g 1201 www && \
+    useradd -r -u 1201 -g www www -m -d /home/www -s /sbin/nologin
 
 WORKDIR /
 

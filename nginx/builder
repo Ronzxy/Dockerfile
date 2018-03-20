@@ -15,10 +15,12 @@ if [ -f /proc/cpuinfo ]; then
 fi
 
 check_source_file() {
-    if [ ! -s nginx-${NGINX_VERSION}.tar.gz ]; then
+    if [ ! -s "${WORK_HOME}/src/nginx-${NGINX_VERSION}.tar.gz" ]; then
         # 检查并安装 wget
         dpkg -V wget || apt update && apt install -y wget
 
+        mkdir -p "${WORK_HOME}/src" > /dev/null 2>&1
+        cd "${WORK_HOME}/src"
         wget -c http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz || exit 1
     fi
 }
@@ -34,111 +36,139 @@ check_build_tools() {
     fi
 }
 
-check_build_deps() {
-    dpkg -V gcc g++ make patch libpcre3-dev zlib1g-dev libssl-dev libjemalloc-dev || DPKG_RESULT=true
+check_install_deps() {
+    dpkg -V libpcre3-dev zlib1g-dev libssl-dev libjemalloc-dev || DPKG_RESULT=true
 
     if [ $DPKG_RESULT ]; then
         apt update
 
         # 安装依赖
-        apt install -y --force-yes gcc g++ make patch libpcre3-dev zlib1g-dev libssl-dev libjemalloc-dev
+        apt install -y --force-yes libpcre3-dev zlib1g-dev libssl-dev libjemalloc-dev
     fi
 }
 
 build_nginx() {
-    check_source_file
-    check_build_tools
-    check_build_deps
-    
-    tar xf nginx-${NGINX_VERSION}.tar.gz && cd nginx-${NGINX_VERSION}
+    rm -rf "${WORK_HOME}/dist/nginx" "${WORK_HOME}/src/nginx-${NGINX_VERSION}" > /dev/null 2>&1
 
-    ./configure --prefix=$BUILD_PATH \
-    --sbin-path=$BUILD_PATH/sbin/nginx \
-    --conf-path=/etc/nginx/nginx.conf \
-    --error-log-path=/var/log/nginx/error.log \
-    --http-log-path=/var/log/nginx/access.log \
-    --pid-path=/var/run/nginx.pid \
-    --lock-path=/var/lock/nginx.lock \
-    --http-client-body-temp-path=/var/cache/nginx/client_temp \
-    --http-proxy-temp-path=/var/cache/nginx/proxy_temp \
-    --http-fastcgi-temp-path=/var/cache/nginx/fastcgi_temp \
-    --http-uwsgi-temp-path=/var/cache/nginx/uwsgi_temp \
-    --http-scgi-temp-path=/var/cache/nginx/scgi_temp \
-    --user=www --group=www \
-    --with-http_ssl_module \
-    --with-http_realip_module \
-    --with-http_addition_module \
-    --with-http_sub_module \
-    --with-http_dav_module \
-    --with-http_flv_module \
-    --with-http_mp4_module \
-    --with-http_gzip_static_module \
-    --with-http_random_index_module \
-    --with-http_secure_link_module \
-    --with-http_stub_status_module \
-    --with-mail \
-    --with-mail_ssl_module \
-    --with-file-aio \
-    --with-ipv6 \
-    --with-threads \
-    --with-cpp_test_module \
-    --with-stream \
-    --with-cc-opt='-O2 -g -m64 -mtune=generic' \
-    --with-ld-opt="-ljemalloc"
+    TMP_VAR=$NGINX_VERSION
+    printf "请输入要安装的版本 (默认 ${TMP_VAR}):\\n"
+    read NGINX_VERSION
+    if [ "$NGINX_VERSION" = "" ]; then
+        NGINX_VERSION=${TMP_VAR}
+    fi
 
-    make
+    check_install_deps
+
+    if [ -f "${WORK_HOME}/dist/nginx-${NGINX_VERSION}.tgz" ]; then
+        printf "Found package file ${WORK_HOME}/dist/nginx-${NGINX_VERSION}.tgz\n"
+        printf "Decompression...\n"
+        tar xf "${WORK_HOME}/dist/nginx-${NGINX_VERSION}.tgz" -C "${WORK_HOME}/dist"
+        printf "Decompression is complate.\n"
+    else
+        # 没有二进制程序，开始编译
+        check_source_file
+        check_build_tools
+
+        cd "${WORK_HOME}/src"
+        tar xf nginx-${NGINX_VERSION}.tar.gz && cd nginx-${NGINX_VERSION}
+
+        ./configure --prefix=$BUILD_PATH \
+        --sbin-path=$BUILD_PATH/sbin/nginx \
+        --conf-path=/etc/nginx/nginx.conf \
+        --error-log-path=/var/log/nginx/error.log \
+        --http-log-path=/var/log/nginx/access.log \
+        --pid-path=/var/run/nginx.pid \
+        --lock-path=/var/lock/nginx.lock \
+        --http-client-body-temp-path=/var/cache/nginx/client_temp \
+        --http-proxy-temp-path=/var/cache/nginx/proxy_temp \
+        --http-fastcgi-temp-path=/var/cache/nginx/fastcgi_temp \
+        --http-uwsgi-temp-path=/var/cache/nginx/uwsgi_temp \
+        --http-scgi-temp-path=/var/cache/nginx/scgi_temp \
+        --user=www --group=www \
+        --with-http_ssl_module \
+        --with-http_v2_module \
+        --with-http_realip_module \
+        --with-http_addition_module \
+        --with-http_sub_module \
+        --with-http_dav_module \
+        --with-http_flv_module \
+        --with-http_mp4_module \
+        --with-http_gzip_static_module \
+        --with-http_random_index_module \
+        --with-http_secure_link_module \
+        --with-http_stub_status_module \
+        --with-mail \
+        --with-mail_ssl_module \
+        --with-file-aio \
+        --with-ipv6 \
+        --with-threads \
+        --with-cpp_test_module \
+        --with-stream \
+        --with-cc-opt='-O2 -g -m64 -mtune=generic' \
+        --with-ld-opt="-ljemalloc"
+
+        make || exit 1
+
+        mkdir -p $WORK_HOME/dist/nginx/sbin
+        cp objs/nginx $WORK_HOME/dist/nginx/sbin
+        cp -r conf html $WORK_HOME/dist/nginx
+
+        cd $WORK_HOME/dist/nginx/conf
+
+        cp fastcgi.conf  fastcgi.conf.default
+        cp fastcgi_params  fastcgi_params.default
+        cp koi-utf  koi-utf.default
+        cp koi-win  koi-win.default
+        cp mime.types  mime.types.default
+        cp nginx.conf  nginx.conf.default
+        cp scgi_params  scgi_params.default
+        cp uwsgi_params uwsgi_params.default
+        cp win-utf win-utf.default
+
+        cp -r ${WORK_HOME}/conf $WORK_HOME/dist/nginx
+
+        # 开始打包
+        cd "${WORK_HOME}/dist"
+
+        printf "Package file ${WORK_HOME}/dist/nginx-${NGINX_VERSION}.tgz\n"
+        printf "Compression...\n"
+        tar zcf nginx-${NGINX_VERSION}.tgz nginx
+        printf "Compression is complate.\n"
+    fi
 }
 
-# if [ ! -x "/usr/sbin/nginx" ]; then
-#     build_nginx
+install_nginx() {
+    build_nginx
 
-#     cp -r /conf/* /etc/nginx/
+    groupadd -r -g 1201 www > /dev/null 2>&1
+    useradd -r -u 1201 -g www www -m -d /home/www -s /bin/nolog > /dev/null 2>&1
 
-#     cd /etc/nginx/
+    cp -r "${WORK_HOME}/dist/nginx/html" /home/www/html
+    cp -r "${WORK_HOME}/dist/nginx/conf" /etc/nginx
+    cp "${WORK_HOME}/dist/nginx/sbin/nginx" /usr/sbin/nginx
+}
 
-#     cp fastcgi.conf  fastcgi.conf.default
-#     cp fastcgi_params  fastcgi_params.default
-#     cp koi-utf  koi-utf.default
-#     cp koi-win  koi-win.default
-#     cp mime.types  mime.types.default
-#     cp nginx.conf  nginx.conf.default
-#     cp scgi_params  scgi_params.default
-#     cp uwsgi_params uwsgi_params.default
-#     cp win-utf win-utf.default
-# fi
+case "$1" in
+    build)
+        build_nginx
+        exit 0
+    ;;
+    install)
+        if [ "$(id -u)" != 0 ]; then
+            echo "Error: Please use root to execute this shell."
+            exit 1
+        fi
 
-# # 创建目录及修改权限
-# mkdir -p /var/cache/nginx /var/log/nginx
-# chown -R www:www /var/cache/nginx /var/log/nginx
-
-# /usr/sbin/nginx -g "daemon off;"
-
-
-TMP_VAR=$NGINX_VERSION
-printf "请输入要安装的版本 (默认 ${TMP_VAR}):\\n"
-read NGINX_VERSION
-if [ "$NGINX_VERSION" = "" ]; then
-    NGINX_VERSION=${TMP_VAR}
-fi
-
-build_nginx
-
-mkdir -p $WORK_HOME/dist/nginx/sbin
-cp objs/nginx $WORK_HOME/dist/nginx/sbin
-cp -r conf html $WORK_HOME/dist/nginx
-
-cd $WORK_HOME/dist/nginx/conf
-
-cp fastcgi.conf  fastcgi.conf.default
-cp fastcgi_params  fastcgi_params.default
-cp koi-utf  koi-utf.default
-cp koi-win  koi-win.default
-cp mime.types  mime.types.default
-cp nginx.conf  nginx.conf.default
-cp scgi_params  scgi_params.default
-cp uwsgi_params uwsgi_params.default
-cp win-utf win-utf.default
-
-cp -r ${WORK_HOME}/conf $WORK_HOME/dist/nginx
-
-docker build -t nginx:$NGINX_VERSION $WORK_HOME
+        install_nginx
+        exit 0
+    ;;
+    docker)
+        build_nginx
+        docker build -t nginx:$NGINX_VERSION $WORK_HOME
+        exit 0
+    ;;
+    *)
+        echo $"Usage: {build | install | docker}"
+        exit 1
+    ;;
+esac
