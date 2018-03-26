@@ -100,7 +100,6 @@ build_nginx() {
         --with-mail \
         --with-mail_ssl_module \
         --with-file-aio \
-        --with-ipv6 \
         --with-threads \
         --with-cpp_test_module \
         --with-stream \
