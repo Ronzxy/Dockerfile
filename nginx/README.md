@@ -23,5 +23,5 @@ docker run --name nginx \
 --cpu-shares=512 --memory=128m --memory-swap=-1 \
 --oom-kill-disable=true \
 --restart=always \
--d nginx:1.12.2
+-d nginx:1.14.0
 ```

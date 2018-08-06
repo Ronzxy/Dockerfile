@@ -1,9 +1,6 @@
 FROM debian:stretch
 
-MAINTAINER NGINX Docker Maintainers "zhangchaoren@openeasy.net"
-
 RUN echo "deb http://mirrors.163.com/debian/ stretch main" > /etc/apt/sources.list
-#RUN echo "deb-src http://mirrors.163.com/debian/ stretch main" >> /etc/apt/sources.list
 
 # 安装依赖包
 RUN apt update && \
@@ -16,8 +13,6 @@ RUN apt update && \
 # 配置系统环境
 RUN export LC_ALL=zh_CN.UTF-8
 RUN printf "zh_CN.UTF-8 UTF-8\\nen_US.UTF-8 UTF-8\\n" >> /etc/locale.gen && locale-gen
-RUN echo "export LANG=zh_CN.UTF-8" >> /etc/profile
-RUN echo "export PATH=$PGHOME/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin" >> /etc/profile
 RUN echo "Asia/Shanghai" >> /etc/timezone && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 
 # 添加用户
