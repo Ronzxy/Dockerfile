@@ -9,7 +9,7 @@ export PATH
 
 WORK_HOME=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
 BUILD_PATH=/usr
-NGINX_VERSION=1.14.0
+NGINX_VERSION=1.14.2
 NGINX_VERSION_MAJOR=`printf $NGINX_VERSION | awk -F '.' '{print $1}'`
 NGINX_VERSION_MINOR=`printf $NGINX_VERSION | awk -F '.' '{print $2}'`
 
