@@ -1,0 +1,7 @@
+#!/bin/bash
+
+WORK_HOME=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
+JAVA_VERSION=jdk8
+TOMCAT_VERSION=8.5
+
+docker build -t tomcat:${TOMCAT_VERSION}-${JAVA_VERSION} ${WORK_HOME}
