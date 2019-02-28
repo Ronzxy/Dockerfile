@@ -16,7 +16,6 @@ chmod 755 builder
 docker run --name nginx \
 -p 80:80 \
 -p 443:443 \
--p 8017:80 \
 -v /home/storage/run/docker/nginx/conf:/etc/nginx \
 -v /home/storage/run/docker/nginx/logs:/var/log/nginx \
 -v /home/storage/run/docker/nginx/keys:/keys \

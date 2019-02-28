@@ -9,7 +9,7 @@ export PATH
 
 WORK_HOME=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
 BUILD_PATH=/usr
-NGINX_VERSION=1.14.2
+NGINX_VERSION=1.15.9
 NGINX_VERSION_MAJOR=`printf $NGINX_VERSION | awk -F '.' '{print $1}'`
 NGINX_VERSION_MINOR=`printf $NGINX_VERSION | awk -F '.' '{print $2}'`
 
@@ -21,26 +21,29 @@ fi
 check_source_file() {
     if [ ! -s "${WORK_HOME}/src/nginx-${NGINX_VERSION}.tar.gz" ]; then
         # 检查并安装 wget
-        dpkg -V wget || apt update && apt install -y wget
+        dpkg -V wget || sh -c "apt update && apt install -y wget"
 
-        mkdir -p "${WORK_HOME}/src" > /dev/null 2>&1
-        cd "${WORK_HOME}/src"
-        wget -c http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz || exit 1
+        if [ ! -d "${WORK_HOME}/src" ]; then
+            mkdir -p "${WORK_HOME}/src"
+        fi
+
+        wget -c http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz \
+            -O ${WORK_HOME}/src/nginx-${NGINX_VERSION}.tar.gz || exit 1
     fi
 }
 
 check_build_tools() {
     # 安装编译工具
-    dpkg -V gcc g++ make patch || \
+    dpkg -V gcc g++ make patch || sh -c "\
         apt update && \
-        apt install -y gcc g++ make patch
+        apt install -y gcc g++ make patch"
 }
 
 check_install_deps() {
     # 安装依赖
-    dpkg -V libpcre3-dev zlib1g-dev libssl-dev libjemalloc-dev ||  
+    dpkg -V libpcre3-dev zlib1g-dev libssl-dev libjemalloc-dev || sh -c " \
         apt update && \
-        apt install -y libpcre3-dev zlib1g-dev libssl-dev libjemalloc-dev
+        apt install -y libpcre3-dev zlib1g-dev libssl-dev libjemalloc-dev"
 }
 
 configure() {
@@ -48,12 +51,12 @@ configure() {
         clean
     fi
 
-    TMP_VAR=$NGINX_VERSION
-    printf "请输入要安装的版本 (默认 ${TMP_VAR}):\\n"
-    read NGINX_VERSION
-    if [ "$NGINX_VERSION" = "" ]; then
-        NGINX_VERSION=${TMP_VAR}
-    fi
+    # TMP_VAR=$NGINX_VERSION
+    # printf "请输入要安装的版本 (默认 ${TMP_VAR}):\\n"
+    # read NGINX_VERSION
+    # if [ "$NGINX_VERSION" = "" ]; then
+    #     NGINX_VERSION=1.15.9
+    # fi
 
     check_source_file
     check_build_tools
@@ -62,7 +65,7 @@ configure() {
     echo "Start configuring nginx..."
 
     tar xf ${WORK_HOME}/src/nginx-${NGINX_VERSION}.tar.gz -C ${WORK_HOME}/src && \
-        cd nginx-${NGINX_VERSION}
+        cd ${WORK_HOME}/src/nginx-${NGINX_VERSION}
 
     ./configure --prefix=$BUILD_PATH \
     --sbin-path=$BUILD_PATH/sbin/nginx \
@@ -170,9 +173,14 @@ docker_env() {
     docker ps -a | grep build_nginx_image_${NGINX_VERSION} > /dev/null 2>&1
     if [ $? -ne 0 ]; then
         # 容器未创建，选择系统版本
-        if [ ${NGINX_VERSION_MAJOR} -ge 1 -a ${NGINX_VERSION_MINOR} -gt 2 ]; then
-            # 大于 1.2 使用 debian 9: stretch 镜像
-            IMAGE_NAME=debian:stretch
+        if [ ${NGINX_VERSION_MAJOR} -ge 1 ]; then
+            if [ ${NGINX_VERSION_MINOR} -gt 2 ]; then
+                # 大于 1.2 使用 debian 9: stretch 镜像
+                IMAGE_NAME=debian:stretch
+            else
+                # 小于 1.2 使用 debian 8: jessie 镜像
+                IMAGE_NAME=debian:jessie
+            fi
         else
             # 小于 1.2 使用 debian 8: jessie 镜像
             IMAGE_NAME=debian:jessie
@@ -180,9 +188,6 @@ docker_env() {
         # 创建容器
         docker run --name build_nginx_image_${NGINX_VERSION} \
             --volume=${WORK_HOME}:/data \
-            --volume=${WORK_HOME}/docker/data/www:/home/www \
-            --volume=${WORK_HOME}/docker/data/conf:/etc/nginx \
-            --volume=${WORK_HOME}/docker/data/logs:/var/log/nginx \
             --volume=/usr/bin/docker:/usr/bin/docker \
             --volume=/var/run/docker.sock:/var/run/docker.sock \
             --cpu-shares=1024 --memory=512m --memory-swap=-1 \
@@ -199,57 +204,39 @@ docker_env() {
     echo "Finished."
 }
 
-build_docker_images() {
-    if [ ${NGINX_VERSION_MAJOR} -ge 1 -a ${NGINX_VERSION_MINOR} -gt 2 ]; then
-        # 大于 1.2 使用 debian 9: stretch 镜像
-        sed -i "s/^FROM debian:.*$/FROM debian:stretch/g" ${WORK_HOME}/Dockerfile
-        sed -i "s/deb\ http:\/\/.*main/deb\ http:\/\/mirrors.163.com\/debian\/\ stretch\ main/g" ${WORK_HOME}/Dockerfile
+add_apt_source_stretch() {
+    sed -i "s/^FROM debian:.*$/FROM debian:stretch/g" ${WORK_HOME}/Dockerfile
+    sed -i "s/deb\ http:\/\/.*main/deb\ http:\/\/mirrors.163.com\/debian\/\ stretch\ main/g" ${WORK_HOME}/Dockerfile
 
-        if [ -r /.dockerenv ]; then
-            echo "deb http://mirrors.163.com/debian/ stretch main" > /etc/apt/sources.list
+    if [ -r /.dockerenv ]; then
+        echo "deb http://mirrors.163.com/debian/ stretch main" > /etc/apt/sources.list
+    fi
+}
+
+add_apt_source_jessie() {
+    sed -i "s/^FROM debian:.*$/FROM debian:jessie/g" ${WORK_HOME}/Dockerfile
+    sed -i "s/deb\ http:\/\/.*main/deb\ http:\/\/mirrors.163.com\/debian\/\ jessie\ main/g" ${WORK_HOME}/Dockerfile
+
+    if [ -r /.dockerenv ]; then
+        echo "deb http://mirrors.163.com/debian/ jessie main" > /etc/apt/sources.list
+    fi
+}
+
+build_docker_images() {
+    if [ ${NGINX_VERSION_MAJOR} -ge 1 ]; then
+        if [ ${NGINX_VERSION_MINOR} -gt 2 ]; then
+            # 大于 1.2 使用 debian 9: stretch 镜像
+            add_apt_source_stretch
+        else
+            add_apt_source_jessie
         fi
     else
-        sed -i "s/^FROM debian:.*$/FROM debian:jessie/g" ${WORK_HOME}/Dockerfile
-        sed -i "s/deb\ http:\/\/.*main/deb\ http:\/\/mirrors.163.com\/debian\/\ jessie\ main/g" ${WORK_HOME}/Dockerfile
-
-        if [ -r /.dockerenv ]; then
-            echo "deb http://mirrors.163.com/debian/ jessie main" > /etc/apt/sources.list
-        fi
+        add_apt_source_jessie
     fi
-
-    # # 初始化容器环境
-    # if [ ! -f /.dockerinit ]; then
-    #     apt update
-    #     apt install -y locales
-    #     apt autoremove -y || apt-get autoremove -y
-    #     apt upgrade -y
-
-    #     export LC_ALL=zh_CN.UTF-8
- 
-    #     printf "zh_CN.UTF-8 UTF-8\\nen_US.UTF-8 UTF-8\\n" >> /etc/locale.gen && locale-gen
-    #     echo "export LANG=zh_CN.UTF-8" >> /etc/profile
-    #     echo "Asia/Shanghai" >> /etc/timezone && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-
-    #     if [ -f "/etc/bash.bashrc" ]; then
-    #         grep "LANG=zh_CN.UTF-8" /etc/bash.bashrc > /dev/null 2>&1 || \
-    #             echo "export LANG=zh_CN.UTF-8" >> /etc/bash.bashrc
-
-    #         grep "PATH=" /etc/bash.bashrc > /dev/null 2>&1 || \
-    #             echo "export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin" >> /etc/bash.bashrc
-    #     else
-    #         grep "LANG=zh_CN.UTF-8" /etc/profile > /dev/null 2>&1 || \
-    #             echo "export LANG=zh_CN.UTF-8" >> /etc/profile
-
-    #         grep "PATH=" /etc/profile > /dev/null 2>&1 || \
-    #             echo "export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin" >> /etc/profile
-    #     fi
-
-    #     > /.dockerinit
-    # fi
 
     # 清理之前编译的数据
     clean
-    # 编译 nginx
+    # 安装编译 nginx
     install
 
 
@@ -270,7 +257,7 @@ case "$1" in
         # 创建 nginx docker 构建容器
         docker_env
 
-        docker exec -t -i build_nginx_image_${NGINX_VERSION} /data/builder images
+        docker exec -it build_nginx_image_${NGINX_VERSION} /data/builder images
 
         exit 0
     ;;
