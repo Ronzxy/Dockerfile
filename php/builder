@@ -1,38 +1,347 @@
-#!/bin/sh
-# Auto build php docker image.
-# Powered by cr: zhangchaoren@openeasy.net
+#!/bin/bash
+#
+# 作者：Skygangsta<skygangsta@hotmail.com>
+#
+# Nginx 编译脚本，仅支持 Debian 系 Linux 系统
 
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 export PATH
 
-DEFAULT_VERSION=7.0.6
+WORK_HOME=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
+NGINX_VERSION=1.15.9
+PHP_VERSION=7.3.2
+PHP_VERSION_MAJOR=`printf ${PHP_VERSION} | awk -F '.' '{print $1}'`
+PHP_VERSION_MINOR=`printf ${PHP_VERSION} | awk -F '.' '{print $2}'`
+BUILD_PATH=${WORK_HOME}/dist/php-${PHP_VERSION}
 
-read -p "Please enter the version you want to install (default $DEFAULT_VERSION):" VERSION
-if [ "$VERSION" = "" ]; then
-  VERSION=$DEFAULT_VERSION
+PECL_REDIS=4.2.0
+PECL_SMBCLIENT=1.0.0
+PECL_IMAGICK=3.4.3
+
+# 探测cpu核心数
+if [ -f /proc/cpuinfo ]; then
+    j="-j$(grep 'model name' /proc/cpuinfo | wc -l || 1)"
 fi
 
-# 检查运行期间需要的工具是否安装
-which wget > /dev/null && which xz > /dev/null \
-|| sudo apt-get update
-which wget > /dev/null && which xz > /dev/null \
-|| sudo apt-get install -y wget xz-utils
+check_source_file() {
+    if [ ! -s "${WORK_HOME}/src/php-${PHP_VERSION}.tar.xz" ]; then
+        # 检查并安装 wget
+        dpkg -V wget || bash -c "apt update && apt install -y wget"
 
-WORK_DIR=$(pwd)
-PHP_FILE=php-$VERSION.tar.xz
-PHP_URL=http://cn2.php.net/distributions/$PHP_FILE
+        if [ ! -d "${WORK_HOME}/src" ]; then
+            mkdir -p "${WORK_HOME}/src"
+        fi
 
-if [ -s $PHP_FILE ]; then
-    echo "tar xvf $PHP_FILE"
-  else
-    wget -c $PHP_URL || exit 1
-fi
+        echo "php-${PHP_VERSION}.tar.xz not found, downloading..."
+        wget http://cn2.php.net/distributions/php-${PHP_VERSION}.tar.xz \
+            -O ${WORK_HOME}/src/php-${PHP_VERSION}.tar.xz || exit 1
+    fi
+}
 
-tar xvf $PHP_FILE
+check_build_tools() {
+    # 安装编译工具
+    dpkg -V gcc g++ make patch patch autoconf pkg-config || bash -c "\
+        apt update && \
+        apt install -y gcc g++ make patch autoconf pkg-config"
+}
 
-rm -rf docker-build-sources
-mv php-$VERSION docker-build-sources
+check_install_deps() {
+    # 安装依赖
+    dpkg -V libjpeg-dev libpng-dev zlib1g-dev libxml2-dev libssl-dev libbison-dev libpcre3-dev libbz2-dev \
+        libcurl4-gnutls-dev libxpm-dev libfreetype6-dev libgmp3-dev libc-client-dev libkrb5-dev \
+        libicu-dev libldap2-dev libsasl2-dev libmcrypt-dev unixodbc-dev libsnmp-dev libtidy-dev libxslt-dev \
+        libpq-dev default-libmysqlclient-dev libsqlite3-dev libzip-dev libreadline-dev || bash -c "
+        apt update && \
+        apt install -y libjpeg-dev libpng-dev zlib1g-dev libxml2-dev libssl-dev libbison-dev libpcre3-dev libbz2-dev \
+            libcurl4-gnutls-dev libxpm-dev libfreetype6-dev libgmp3-dev libc-client-dev libkrb5-dev \
+            libicu-dev libldap2-dev libsasl2-dev libmcrypt-dev unixodbc-dev libsnmp-dev libtidy-dev libxslt-dev \
+            libpq-dev default-libmysqlclient-dev libsqlite3-dev libzip-dev libreadline-dev"
+}
 
-docker build -t php:$VERSION $WORK_DIR
+configure() {
+    if [ -f "${WORK_HOME}/src/php-${PHP_VERSION}/Makefile" ]; then
+        clean
+    fi
 
-rm -rf docker-build-sources
+    # TMP_VAR=$PHP_VERSION
+    # printf "请输入要安装的版本 (默认 ${TMP_VAR}):\\n"
+    # read PHP_VERSION
+    # if [ "$PHP_VERSION" = "" ]; then
+    #     PHP_VERSION=${TMP_VAR}
+    # fi
+
+    check_source_file
+    check_install_deps
+
+    echo "Start configuring php..."
+
+    tar xf ${WORK_HOME}/src/php-${PHP_VERSION}.tar.xz -C ${WORK_HOME}/src && \
+        cd ${WORK_HOME}/src/php-${PHP_VERSION}
+
+    ./configure \
+    --prefix=${BUILD_PATH} \
+    --exec-prefix=${BUILD_PATH} \
+    --sysconfdir=/etc/php \
+    --datadir=${BUILD_PATH}/share \
+    --includedir=${BUILD_PATH}/include \
+    --libdir=${BUILD_PATH}/lib \
+    --libexecdir=${BUILD_PATH}/libexec \
+    --localstatedir=/var \
+    --sharedstatedir=/var/lib \
+    --mandir=${BUILD_PATH}/share/man \
+    --infodir=${BUILD_PATH}/share/info \
+    --cache-file=config.cache \
+    --with-config-file-path=/etc/php \
+    --with-config-file-scan-dir=/etc/php/conf.d \
+    --disable-debug \
+    \
+    --with-libxml-dir=/usr \
+    --with-jpeg-dir=/usr \
+    --with-freetype-dir=/usr \
+    --with-png-dir=/usr \
+    --with-xpm-dir=/usr \
+    --with-icu-dir=/usr \
+    \
+    --disable-rpath \
+    --with-layout=GNU \
+    --with-readline=shared \
+    --with-pear=shared \
+    \
+    --with-pcre-regex \
+    --with-iconv=shared \
+    --with-pic=shared \
+    --with-imap=shared \
+    --with-imap-ssl=shared \
+    --with-kerberos \
+    --with-bz2=shared \
+    --with-gettext=shared \
+    --with-gmp=shared \
+    --with-openssl=shared \
+    --with-mhash=shared \
+    --with-zlib=shared \
+    --with-gd=shared \
+    --with-snmp=shared \
+    --with-xmlrpc=shared \
+    --with-ldap=shared \
+    --with-ldap-sasl \
+    --with-xsl=shared \
+    --with-curl=shared \
+    --with-tidy=shared \
+    --with-unixODBC=shared,/usr \
+    --enable-exif=shared \
+    --enable-ftp=shared \
+    --enable-sockets=shared \
+    --enable-sysvsem=shared \
+    --enable-sysvshm=shared \
+    --enable-sysvmsg=shared \
+    --enable-shmop=shared \
+    --enable-calendar=shared \
+    --enable-xml=shared \
+    --enable-pcntl=shared \
+    --enable-mbstring=shared \
+    --enable-mbregex=shared \
+    --enable-bcmath=shared \
+    --enable-dom=shared \
+    --enable-wddx=shared \
+    --enable-soap=shared \
+    --enable-xmlreader=shared \
+    --enable-xmlwriter=shared \
+    --enable-json=shared \
+    --enable-zip=shared \
+    --enable-phar=shared \
+    --enable-sysvmsg=shared \
+    --enable-sysvshm=shared \
+    --enable-sysvsem=shared \
+    --enable-posix=shared \
+    --enable-fileinfo=shared \
+    --enable-intl=shared \
+    --enable-session=shared \
+    --enable-simplexml=shared \
+    --enable-ctype=shared \
+    --enable-libxml=shared,/usr \
+    \
+    --enable-fpm \
+    --with-fpm-user=www \
+    --with-fpm-group=www \
+    \
+    --enable-pdo=shared \
+    --with-pdo-odbc=shared,unixODBC,/usr \
+    \
+    --with-sqlite3=shared \
+    --with-pdo-sqlite=shared \
+    \
+    --with-mysqli=shared,/usr/bin/mysql_config \
+    --with-pdo-mysql=shared,/usr/bin/mysql_config \
+    --with-pgsql=shared \
+    --with-pdo-pgsql=shared
+
+    if [ -f ${WORK_HOME}/src/php-${PHP_VERSION}/Makefile ]; then
+        sed -i "s|EXTENSION_DIR = .*|EXTENSION_DIR = ${BUILD_PATH}/lib/modules|g" \
+            ${WORK_HOME}/src/php-${PHP_VERSION}/Makefile
+    else
+        echo "Configure with error."
+        exit 1
+    fi
+
+    echo "Finished."
+}
+
+build() {
+    if [ ! -f "${WORK_HOME}/src/php-${PHP_VERSION}/Makefile" ]; then
+        configure
+    fi
+
+    echo "Start building php..."
+
+    cd ${WORK_HOME}/src/php-${PHP_VERSION}
+
+    make $j LDFLAGS=-lreadline
+
+    if [ $? -ne 0 ]; then
+        echo -e "\033[31m[ERROR] Compile encountered with an error.\033[0m"
+        exit 1
+    fi
+
+    echo "Finished."
+}
+
+install() {
+    build
+
+    echo "Start installing php..."
+
+    cd ${WORK_HOME}/src/php-${PHP_VERSION}
+
+    make install
+
+    if [ $? -ne 0 ]; then
+        echo -e "\033[31m[ERROR] Installation encountered with an error.\033[0m"
+        exit 1
+    fi
+
+    sed -i "s|;extension_dir = \"./\"|extension_dir = \"/usr/lib/php/modules\"|g" php.ini-development
+    sed -i "s|;extension_dir = \"./\"|extension_dir = \"/usr/lib/php/modules\"|g" php.ini-production
+
+    cp php.ini-development php.ini-production /etc/php
+    cp /etc/php/php.ini-production /etc/php/php.ini
+    cp /etc/php/php-fpm.conf.default /etc/php/php-fpm.conf
+    cp /etc/php/php-fpm.d/www.conf.default /etc/php/php-fpm.d/www.conf
+
+    if [ -d ${BUILD_PATH}/conf ]; then
+        rm -rf ${BUILD_PATH}/conf
+    fi
+
+    cp -r /etc/php ${BUILD_PATH}/conf
+    mkdir ${BUILD_PATH}/conf/conf.d
+
+    echo "Finished."
+}
+
+clean() {
+    if [ -f ${WORK_HOME}/dist/nginx/cache/nginx.pid ]; then
+        stop
+    fi    
+    
+    echo "Start cleaning php..."
+
+    if [ -d "${WORK_HOME}/src/php-${PHP_VERSION}" ]; then
+       rm -rf "${WORK_HOME}/src/php-${PHP_VERSION}"
+    fi
+
+    if [ -a "${WORK_HOME}/dist" ]; then
+        rm -rf ${WORK_HOME}/dist
+    fi
+
+    echo "Finished."
+}
+
+check_nginx_docker_image() {
+    echo "Checking nginx docker image..."
+    docker images | grep nginx | grep ${NGINX_VERSION} > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        echo "nginx:${NGINX_VERSION} docker image not found, create it..."
+        # 依赖镜像未创建
+        if [ ! -f ${WORK_HOME}/../nginx/builder ]; then
+            echo "nginx 创建脚本未找到"
+            exit 1
+        fi
+        sed -i "s/NGINX_VERSION=.*/NGINX_VERSION=${NGINX_VERSION}/g" ${WORK_HOME}/../nginx/builder
+        bash ${WORK_HOME}/../nginx/builder build
+    else
+        echo "Found nginx:${NGINX_VERSION}"
+    fi
+    # 切换镜像版本
+    sed -i "s/^FROM nginx:.*$/FROM nginx:${NGINX_VERSION}/g" ${WORK_HOME}/Dockerfile
+}
+
+docker_env() {
+    check_nginx_docker_image
+
+    echo "Start initializing docker env..."
+
+    docker ps -a | grep build_php_image_${PHP_VERSION} > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        # 容器未创建，创建容器
+        docker run --name build_php_image_${PHP_VERSION} \
+            --volume=${WORK_HOME}:/data \
+            --volume=/usr/bin/docker:/usr/bin/docker \
+            --volume=/var/run/docker.sock:/var/run/docker.sock \
+            --cpu-shares=1024 --memory=512m --memory-swap=-1 \
+            --oom-kill-disable=true \
+            --restart=always \
+            -t -i -d nginx:${NGINX_VERSION} || exit 1
+    else
+        docker ps | grep build_php_image_${PHP_VERSION} > /dev/null 2>&1
+        if [ $? -ne 0 ]; then
+            docker start build_php_image_${PHP_VERSION} || exit 1
+        fi
+    fi
+
+    echo "Finished."
+}
+
+build_docker_images() {
+    check_build_tools
+
+    # 清理之前编译的数据
+    clean
+    # 安装编译 php
+    install
+
+    echo "Start building docker image..."
+    # 检查 docker 依赖
+    dpkg -V libltdl-dev || bash -c "apt update && apt install -y libltdl-dev"
+
+    cd ${BUILD_PATH}/..
+    mv php-${PHP_VERSION} php
+
+    # 创建 php-nginx 镜像
+    # docker build -t php-nginx:${PHP_VERSION}-${NGINX_VERSION} $WORK_HOME
+
+    mv php php-${PHP_VERSION}
+
+    echo "Finished."
+    
+    # 清理编译之后的数据
+    # clean
+}
+
+case "$1" in
+    build)
+        # 创建 nginx docker 构建容器
+        docker_env
+
+        docker exec -it build_php_image_${PHP_VERSION} /data/builder images
+
+        exit 0
+    ;;
+    images)
+        build_docker_images
+
+        exit 0
+    ;;
+    *)
+        echo $"Usage: {configure | build | install | clean}"
+        exit 1
+    ;;
+esac
