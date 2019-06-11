@@ -252,7 +252,7 @@ build_docker_images() {
 
     echo "Start building docker image..."
     # 修改 Dockerfile 中的 nginx 版本
-    sed -i "s/ENV NGINX_VERSION=.*/ENV NGINX_VERSION=${NGINX_VERSION}/g" ${WORK_HOME}/Dockerfile
+    sed -i "s|COPY dist/nginx-.* /nginx|COPY dist/nginx-${NGINX_VERSION} /nginx|g" ${WORK_HOME}/Dockerfile
     # 检查 docker 依赖
     dpkg -V libltdl-dev || apt update && apt install -y libltdl-dev
     # 创建 nginx 镜像

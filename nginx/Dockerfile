@@ -2,8 +2,6 @@ FROM debian:stretch
 
 RUN echo "deb http://mirrors.163.com/debian/ stretch main" > /etc/apt/sources.list
 
-ENV NGINX_VERSION=1.16.0
-
 # 安装依赖包
 RUN apt update && \
     apt install -y libpcre3 zlib1g openssl libjemalloc1 locales && \
@@ -25,7 +23,7 @@ RUN groupadd -r -g 1201 www && \
 WORKDIR /
 
 # 复制数据
-COPY dist/nginx-${NGINX_VERSION} /nginx
+COPY dist/nginx-1.16.0 /nginx
 COPY startup.sh /
 
 RUN chmod 755 /startup.sh
