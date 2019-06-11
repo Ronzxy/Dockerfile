@@ -1,4 +1,4 @@
-FROM nginx:1.15.9
+FROM nginx:1.16.0
 
 # 安装依赖包
 RUN apt update && \
@@ -22,7 +22,7 @@ WORKDIR /
 ENV PHP_CONFIG_PATH=/etc/php
 
 # 复制数据
-COPY dist/php /php
+COPY dist/php-7.3.2 /php
 COPY php-fpm.sh /
 COPY nginx/default.conf /
 

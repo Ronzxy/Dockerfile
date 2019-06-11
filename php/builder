@@ -8,7 +8,7 @@ PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 export PATH
 
 WORK_HOME=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
-NGINX_VERSION=1.15.9
+NGINX_VERSION=1.16.0
 PHP_VERSION=7.3.2
 PHP_VERSION_MAJOR=`printf ${PHP_VERSION} | awk -F '.' '{print $1}'`
 PHP_VERSION_MINOR=`printf ${PHP_VERSION} | awk -F '.' '{print $2}'`
@@ -34,7 +34,11 @@ check_source_file() {
 
         echo "php-${PHP_VERSION}.tar.xz not found, downloading..."
         wget http://cn2.php.net/distributions/php-${PHP_VERSION}.tar.xz \
-            -O ${WORK_HOME}/src/php-${PHP_VERSION}.tar.xz || exit 1
+            -O ${WORK_HOME}/src/php-${PHP_VERSION}.tar.xz
+        if [ $? -ne 0 ]; then
+            rm -rf ${WORK_HOME}/src/php-${PHP_VERSION}.tar.xz
+            exit $?
+        fi
     fi
 }
 
@@ -158,7 +162,6 @@ configure() {
     --enable-session=shared \
     --enable-simplexml=shared \
     --enable-ctype=shared \
-    --enable-libxml=shared,/usr \
     \
     --enable-fpm \
     --with-fpm-user=www \
@@ -248,8 +251,8 @@ clean() {
        rm -rf "${WORK_HOME}/src/php-${PHP_VERSION}"
     fi
 
-    if [ -a "${WORK_HOME}/dist" ]; then
-        rm -rf ${WORK_HOME}/dist
+    if [ -a ${BUILD_PATH} ]; then
+        rm -rf ${BUILD_PATH}
     fi
 
     echo "Finished."
@@ -288,7 +291,6 @@ docker_env() {
             --volume=/var/run/docker.sock:/var/run/docker.sock \
             --cpu-shares=1024 --memory=512m --memory-swap=-1 \
             --oom-kill-disable=true \
-            --restart=always \
             -t -i -d nginx:${NGINX_VERSION} || exit 1
     else
         docker ps | grep build_php_image_${PHP_VERSION} > /dev/null 2>&1
@@ -304,7 +306,7 @@ build_docker_images() {
     check_build_tools
 
     # 清理之前编译的数据
-    clean
+    # clean
     # 安装编译 php
     install
 
@@ -312,18 +314,14 @@ build_docker_images() {
     # 检查 docker 依赖
     dpkg -V libltdl-dev || bash -c "apt update && apt install -y libltdl-dev"
 
-    cd ${BUILD_PATH}/..
-    mv php-${PHP_VERSION} php
-
     # 创建 php-nginx 镜像
-    # docker build -t php-nginx:${PHP_VERSION}-${NGINX_VERSION} $WORK_HOME
-
-    mv php php-${PHP_VERSION}
+    sed -i "s|COPY dist/php-.* /php|COPY dist/php-${PHP_VERSION} /php|g" ${WORK_HOME}/Dockerfile 
+    docker build -t php-nginx:${PHP_VERSION}-${NGINX_VERSION} $WORK_HOME
 
     echo "Finished."
     
     # 清理编译之后的数据
-    # clean
+    clean
 }
 
 case "$1" in
@@ -341,7 +339,7 @@ case "$1" in
         exit 0
     ;;
     *)
-        echo $"Usage: {configure | build | install | clean}"
+        echo $"Usage: {build | images}"
         exit 1
     ;;
 esac
