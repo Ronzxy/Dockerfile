@@ -8,7 +8,7 @@ PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 export PATH
 
 WORK_HOME=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
-NGINX_VERSION=1.16.0
+NGINX_VERSION=1.15.9
 NGINX_VERSION_MAJOR=`printf $NGINX_VERSION | awk -F '.' '{print $1}'`
 NGINX_VERSION_MINOR=`printf $NGINX_VERSION | awk -F '.' '{print $2}'`
 BUILD_PREFIX=/usr
@@ -29,7 +29,11 @@ check_source_file() {
         fi
 
         wget -c http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz \
-            -O ${WORK_HOME}/src/nginx-${NGINX_VERSION}.tar.gz || exit 1
+            -O ${WORK_HOME}/src/nginx-${NGINX_VERSION}.tar.gz
+        if [ $? -ne 0 ]; then
+            rm -rf ${WORK_HOME}/src/nginx-${NGINX_VERSION}.tar.gz
+            exit $?
+        fi
     fi
 }
 
