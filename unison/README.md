@@ -13,9 +13,11 @@ chmod 755 builder
 
 # 创建容器
 ```shell
-docker run --name unison-server-2201 \
+docker run --name svn-backup-unison-2201 \
 -p 2201:22 \
--v /data/run/docker/unison-server-2201/data:/data \
--v /data/run/docker/unison-server-2201/ssh:/root/.ssh \
+-v /home/storage/run/docker/svn-backup-unison-2201/data:/data \
+--cpu-shares=256 --memory=512m --memory-swap=-1 \
+--oom-kill-disable=true \
+--restart=always \
 -d unison:debian-jessie
 ```
