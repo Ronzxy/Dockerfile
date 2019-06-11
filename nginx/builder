@@ -8,10 +8,11 @@ PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 export PATH
 
 WORK_HOME=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
-BUILD_PATH=/usr
-NGINX_VERSION=1.15.9
+NGINX_VERSION=1.16.0
 NGINX_VERSION_MAJOR=`printf $NGINX_VERSION | awk -F '.' '{print $1}'`
 NGINX_VERSION_MINOR=`printf $NGINX_VERSION | awk -F '.' '{print $2}'`
+BUILD_PREFIX=/usr
+INSTALL_PREFIX=${WORK_HOME}/dist/nginx-${NGINX_VERSION}
 
 # 探测cpu核心数
 if [ -f /proc/cpuinfo ]; then
@@ -67,8 +68,8 @@ configure() {
     tar xf ${WORK_HOME}/src/nginx-${NGINX_VERSION}.tar.gz -C ${WORK_HOME}/src && \
         cd ${WORK_HOME}/src/nginx-${NGINX_VERSION}
 
-    ./configure --prefix=$BUILD_PATH \
-    --sbin-path=$BUILD_PATH/sbin/nginx \
+    ./configure --prefix=$BUILD_PREFIX \
+    --sbin-path=$BUILD_PREFIX/sbin/nginx \
     --conf-path=/etc/nginx/nginx.conf \
     --error-log-path=/var/log/nginx/error.log \
     --http-log-path=/var/log/nginx/access.log \
@@ -116,6 +117,11 @@ build() {
 
     make $j
 
+    if [ $? -ne 0 ]; then
+        echo -e "\033[31m[ERROR] Compile encountered with an error.\033[0m"
+        exit 1
+    fi
+
     echo "Finished."
 }
 
@@ -128,32 +134,38 @@ install() {
 
     cd ${WORK_HOME}/src/nginx-${NGINX_VERSION}
 
-    mkdir -p ${WORK_HOME}/dist/nginx/sbin
-    cp objs/nginx ${WORK_HOME}/dist/nginx/sbin
-    cp -r conf html ${WORK_HOME}/dist/nginx
+    mkdir -p ${INSTALL_PREFIX}/sbin
 
-    cd $WORK_HOME/dist/nginx/conf
+    if [ $? -ne 0 ]; then
+        echo -e "\033[31m[ERROR] Installation encountered with an error.\033[0m"
+        exit 1
+    fi
 
-    cp fastcgi.conf  fastcgi.conf.default
-    cp fastcgi_params  fastcgi_params.default
-    cp koi-utf  koi-utf.default
-    cp koi-win  koi-win.default
-    cp mime.types  mime.types.default
-    cp nginx.conf  nginx.conf.default
-    cp scgi_params  scgi_params.default
+    cp objs/nginx ${INSTALL_PREFIX}/sbin
+    cp -r conf html ${INSTALL_PREFIX}
+
+    cd ${INSTALL_PREFIX}/conf
+
+    cp fastcgi.conf fastcgi.conf.default
+    cp fastcgi_params fastcgi_params.default
+    cp koi-utf koi-utf.default
+    cp koi-win koi-win.default
+    cp mime.types mime.types.default
+    cp nginx.conf nginx.conf.default
+    cp scgi_params scgi_params.default
     cp uwsgi_params uwsgi_params.default
     cp win-utf win-utf.default
 
-    cp -r ${WORK_HOME}/conf ${WORK_HOME}/dist/nginx
+    cp -r ${WORK_HOME}/conf ${INSTALL_PREFIX}
 
     echo "Finished."
 }
 
 clean() {
-    if [ -f ${WORK_HOME}/dist/nginx/cache/nginx.pid ]; then
+    if [ -f ${INSTALL_PREFIX}/cache/nginx.pid ]; then
         stop
-    fi    
-    
+    fi
+
     echo "Start cleaning nginx..."
 
     if [ -d "${WORK_HOME}/src/nginx-${NGINX_VERSION}" ]; then
@@ -192,7 +204,6 @@ docker_env() {
             --volume=/var/run/docker.sock:/var/run/docker.sock \
             --cpu-shares=1024 --memory=512m --memory-swap=-1 \
             --oom-kill-disable=true \
-            --restart=always \
             -t -i -d ${IMAGE_NAME} || exit 1
     else
         docker ps | grep build_nginx_image_${NGINX_VERSION} > /dev/null 2>&1
@@ -239,8 +250,9 @@ build_docker_images() {
     # 安装编译 nginx
     install
 
-
     echo "Start building docker image..."
+    # 修改 Dockerfile 中的 nginx 版本
+    sed -i "s/ENV NGINX_VERSION=.*/ENV NGINX_VERSION=${NGINX_VERSION}/g" ${WORK_HOME}/Dockerfile
     # 检查 docker 依赖
     dpkg -V libltdl-dev || apt update && apt install -y libltdl-dev
     # 创建 nginx 镜像
@@ -267,7 +279,7 @@ case "$1" in
         exit 0
     ;;
     *)
-        echo $"Usage: {configure | build | install | clean}"
+        echo $"Usage: {build | images}"
         exit 1
     ;;
 esac

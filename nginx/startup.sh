@@ -32,6 +32,15 @@ fi
 
 if [ ! -d "/home/www/html" ]; then
     cp -r /nginx/html /home/www/html
+else
+    # index.html
+    if [ ! -f "/home/www/html/index.html" ]; then
+        cp /nginx/html/index.html /home/www/html
+    fi
+    # 50x.html
+    if [ ! -f "/home/www/html/50x.html" ]; then
+        cp /nginx/html/50x.html /home/www/html
+    fi
 fi
 
 # 创建目录及修改权限

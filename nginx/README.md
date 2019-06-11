@@ -19,9 +19,9 @@ docker run --name nginx \
 -v /home/storage/run/docker/nginx/conf:/etc/nginx \
 -v /home/storage/run/docker/nginx/logs:/var/log/nginx \
 -v /home/storage/run/docker/nginx/keys:/keys \
--v /home/storage/run/docker/nginx/data:/data \
+-v /home/storage/run/docker/nginx/html:/home/www/html \
 --cpu-shares=512 --memory=128m --memory-swap=-1 \
 --oom-kill-disable=true \
 --restart=always \
--d nginx:1.14.2
+-d nginx:1.16.0
 ```
