@@ -1,0 +1,58 @@
+#!/bin/bash
+#
+# 作者：Skygangsta<skygangsta@hotmail.com>
+
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+export PATH
+
+WORK_HOME=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
+PGADMIN4_VERSION=4.10
+PGADMIN4_VERSION_MAJOR=`printf $PGADMIN4_VERSION | awk -F '.' '{print $1}'`
+PGADMIN4_VERSION_MINOR=`printf $PGADMIN4_VERSION | awk -F '.' '{print $2}'`
+PGADMIN4_PORT=80
+
+function check_whl_file() {
+    if [ ! -s "${WORK_HOME}/whl/pgadmin4-${PGADMIN4_VERSION}-py2.py3-none-any.whl" ]; then
+        # 检查并安装 wget
+        dpkg -V wget || sh -c "apt update && apt install -y wget"
+
+        if [ ! -d "${WORK_HOME}/whl" ]; then
+            mkdir -p "${WORK_HOME}/whl"
+        fi
+
+        wget https://ftp.postgresql.org/pub/pgadmin/pgadmin4/v${PGADMIN4_VERSION}/pip/pgadmin4-${PGADMIN4_VERSION}-py2.py3-none-any.whl \
+            -O ${WORK_HOME}/whl/pgadmin4-${PGADMIN4_VERSION}-py2.py3-none-any.whl
+        if [ $? -ne 0 ]; then
+            rm -rf ${WORK_HOME}/whl/pgadmin4-${PGADMIN4_VERSION}-py2.py3-none-any.whl
+            exit $?
+        fi
+    fi
+}
+
+build_docker_images() {
+    check_whl_file
+
+    sed -i "s/^ENV PGADMIN4_VERSION='.*'$/ENV PGADMIN4_VERSION='${PGADMIN4_VERSION}'/" ${WORK_HOME}/Dockerfile
+
+    # 创建 nginx 镜像
+    docker build -t pgadmin4:${PGADMIN4_VERSION} ${WORK_HOME}
+
+    echo "Finished."
+}
+
+case "$1" in
+    build)
+        build_docker_images
+
+        exit 0
+    ;;
+    images)
+        build_docker_images
+
+        exit 0
+    ;;
+    *)
+        echo $"Usage: {build | images}"
+        exit 1
+    ;;
+esac
