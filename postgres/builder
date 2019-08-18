@@ -1,0 +1,306 @@
+#!/bin/bash
+#
+# 作者：Skygangsta<skygangsta@hotmail.com>
+#
+# Postgres 编译脚本，仅支持 Debian 系 Linux 系统
+
+WORK_HOME=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
+PG_VERSION=11.5
+PG_VERSION_MAJOR=`printf $PG_VERSION | awk -F '.' '{print $1}'`
+PG_VERSION_MINOR=`printf $PG_VERSION | awk -F '.' '{print $2}'`
+BUILD_PREFIX=/usr
+INSTALL_PREFIX=${WORK_HOME}/dist/postgresql-${PG_VERSION}
+CITUS_VERSION=8.3.2
+
+export PATH=${INSTALL_PREFIX}/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+
+# 探测cpu核心数
+if [ -f /proc/cpuinfo ]; then
+    j="-j$(grep 'model name' /proc/cpuinfo | wc -l || 1)"
+fi
+
+func_check_source_file() {
+    # 检查并安装 wget
+    dpkg -V wget || sh -c "apt update && apt install -y wget"
+
+    if [ ! -d "${WORK_HOME}/src" ]; then
+        mkdir -p "${WORK_HOME}/src"
+    fi
+
+    if [ -s ${WORK_HOME}/src/postgresql-${PG_VERSION}.tar.bz2 ]; then
+        echo "${WORK_HOME}/src/postgresql-${PG_VERSION}.tar.bz2 [found]"
+      else
+        cd ${WORK_HOME}/src
+        wget -c https://ftp.postgresql.org/pub/source/v${PG_VERSION}/postgresql-${PG_VERSION}.tar.bz2 || exit 1
+    fi
+
+    if [ -s ${WORK_HOME}/src/citus-${CITUS_VERSION}.tar.gz ]; then
+        echo "${WORK_HOME}/src/citus-${CITUS_VERSION}.tar.gz [found]"
+    else
+        cd ${WORK_HOME}/src
+        wget -c https://github.com/citusdata/citus/archive/v${CITUS_VERSION}.tar.gz -O citus-${CITUS_VERSION}.tar.gz || exit 1
+    fi
+}
+
+func_check_build_tools() {
+    # 安装编译工具
+    dpkg -V gcc g++ make patch lbzip2 || sh -c "\
+        apt update && \
+        apt install -y gcc g++ make patch lbzip2"
+}
+
+func_check_install_deps() {
+    # 安装依赖
+    dpkg -V zlib1g-dev libssl-dev libreadline-dev libkrb5-dev libpam-dev libxslt-dev libldap2-dev \
+        libcurl4-openssl-dev libossp-uuid-dev libselinux-dev libsystemd-dev libpython3-dev python3 gettext flex bison || sh -c " \
+        apt update && \
+        apt install -y zlib1g-dev libssl-dev libreadline-dev libkrb5-dev libpam-dev libxslt-dev \
+            libldap2-dev libcurl4-openssl-dev libossp-uuid-dev libselinux-dev libsystemd-dev libpython3-dev python3 gettext flex bison"
+}
+
+func_configure() {
+    if [ -f "${WORK_HOME}/src/postgresql-${PG_VERSION}/src/backend/postgres" ]; then
+        func_clean
+    fi
+
+    # if [ -f "${WORK_HOME}/dist/postgresql-${PG_VERSION}/Makefile" ]; then
+    #     func_clean
+    # fi
+
+    func_check_source_file
+    func_check_build_tools
+    func_check_install_deps
+
+    echo "Start configuring postgresql..."
+
+    tar xf ${WORK_HOME}/src/postgresql-${PG_VERSION}.tar.bz2 -C ${WORK_HOME}/src && \
+        cd ${WORK_HOME}/src/postgresql-${PG_VERSION}
+
+    ./configure --prefix=${INSTALL_PREFIX} \
+        --enable-nls="zh_CN zh_TW" \
+        --enable-thread-safety \
+        --with-pgport=5432 \
+        --with-gssapi \
+        --with-libedit-preferred \
+        --with-openssl \
+        --with-pam \
+        --with-ldap \
+        --with-libxslt \
+        --with-libxml \
+        --with-zlib \
+        --with-ossp-uuid \
+        --with-python \
+        --with-selinux \
+        --with-systemd \
+        --with-libs=${INSTALL_PREFIX}/lib/ \
+        --with-includes=${INSTALL_PREFIX}/include/ || exit 1
+
+    echo "Finished."
+}
+
+func_build() {
+    if [ ! -f "${WORK_HOME}/src/postgresql-${PG_VERSION}/src/backend/postgres" ]; then
+        func_configure
+    fi
+
+    echo "Start building postgresql..."
+
+    cd ${WORK_HOME}/src/postgresql-${PG_VERSION}
+
+    make $j
+
+    if [ $? -ne 0 ]; then
+        echo -e "\033[31m[ERROR] Compile encountered with an error.\033[0m"
+        exit 1
+    fi
+
+    echo "Finished."
+}
+
+func_install() {
+    if [ ! -x "${WORK_HOME}/src/postgresql-${PG_VERSION}/src/backend/postgres" ]; then
+        func_build
+    fi
+
+    echo "Start installing postgresql..."
+
+    cd ${WORK_HOME}/src/postgresql-${PG_VERSION}
+
+    make install || exit 1
+
+    echo "Finished."
+}
+
+func_install_contrib() {
+    # 编译外围模块
+    echo "Start compiling contrib..."
+    cd ${WORK_HOME}/src/postgresql-${PG_VERSION}/contrib
+    make $j
+    make install
+    # 编译隔离测试脚本
+    echo "Start compiling test isolation..."
+    cd ${WORK_HOME}/src/postgresql-${PG_VERSION}/src/test/isolation
+    make $j
+    make install
+}
+
+func_install_citus() {
+    if [ -d "${WORK_HOME}/src/citus-${CITUS_VERSION}" ]; then
+        rm -rf "${WORK_HOME}/src/citus-${CITUS_VERSION}"
+    fi
+
+    tar xf ${WORK_HOME}/src/citus-${CITUS_VERSION}.tar.gz -C ${WORK_HOME}/src && \
+        cd ${WORK_HOME}/src/citus-${CITUS_VERSION}
+
+    ./configure --prefix=${INSTALL_PREFIX}
+    make $j
+    make install
+}
+
+func_clean() {
+    # if [ -f ${INSTALL_PREFIX}/cache/postgresql.pid ]; then
+    #     stop
+    # fi
+
+    echo "Start cleaning postgresql..."
+
+    if [ -d "${WORK_HOME}/src/postgresql-${PG_VERSION}" ]; then
+        rm -rf "${WORK_HOME}/src/postgresql-${PG_VERSION}"
+    fi
+
+    if [ -d "${WORK_HOME}/src/citus-${CITUS_VERSION}" ]; then
+        rm -rf "${WORK_HOME}/src/citus-${CITUS_VERSION}"
+    fi
+
+    echo "Finished."
+}
+
+docker_env() {
+    echo "Start initializing docker env..."
+
+    IMAGE_NAME=debian:stretch
+    docker ps -a | grep build_pg_image_${PG_VERSION} > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        # 容器未创建
+        # 创建容器
+        docker run --name build_pg_image_${PG_VERSION} \
+            --volume=${WORK_HOME}:/data \
+            --volume=/usr/bin/docker:/usr/bin/docker \
+            --volume=/var/run/docker.sock:/var/run/docker.sock \
+            --cpu-shares=1024 --memory=512m --memory-swap=-1 \
+            --oom-kill-disable=true \
+            -t -i -d ${IMAGE_NAME} || exit 1
+    else
+        docker ps | grep build_pg_image_${PG_VERSION} > /dev/null 2>&1
+        if [ $? -ne 0 ]; then
+            docker start build_pg_image_${PG_VERSION} || exit 1
+        fi
+    fi
+
+    docker exec -it build_pg_image_${PG_VERSION} /data/builder sources ${IMAGE_NAME}
+
+    echo "Finished."
+}
+
+add_apt_source_buster() {
+    sed -i "s/^FROM debian:.*$/FROM debian:buster/g" ${WORK_HOME}/Dockerfile
+    sed -i "s/deb\ http:\/\/.*main/deb\ http:\/\/mirrors.aliyun.com\/debian\/\ buster\ main/g" ${WORK_HOME}/Dockerfile
+
+    if [ -r /.dockerenv ]; then
+        echo "deb http://mirrors.aliyun.com/debian/ buster main" > /etc/apt/sources.list
+    fi
+}
+
+add_apt_source_stretch() {
+    sed -i "s/^FROM debian:.*$/FROM debian:stretch/g" ${WORK_HOME}/Dockerfile
+    sed -i "s/deb\ http:\/\/.*main/deb\ http:\/\/mirrors.aliyun.com\/debian\/\ stretch\ main/g" ${WORK_HOME}/Dockerfile
+
+    if [ -r /.dockerenv ]; then
+        echo "deb http://mirrors.aliyun.com/debian/ stretch main" > /etc/apt/sources.list
+    fi
+}
+
+add_apt_source_jessie() {
+    sed -i "s/^FROM debian:.*$/FROM debian:jessie/g" ${WORK_HOME}/Dockerfile
+    sed -i "s/deb\ http:\/\/.*main/deb\ http:\/\/mirrors.aliyun.com\/debian\/\ jessie\ main/g" ${WORK_HOME}/Dockerfile
+
+    if [ -r /.dockerenv ]; then
+        echo "deb http://mirrors.aliyun.com/debian/ jessie main" > /etc/apt/sources.list
+    fi
+}
+
+add_apt_source() {
+    if [ ! -z $2 ]; then
+        IMAGE_NAME=$2
+    fi
+
+    if [ "${IMAGE_NAME}"x = "debian:jessie"x ]; then
+        add_apt_source_jessie
+    fi
+
+    if [ "${IMAGE_NAME}"x = "debian:stretch"x ]; then
+        add_apt_source_stretch
+    fi
+
+    if [ "${IMAGE_NAME}"x = "debian:buster"x ]; then
+        add_apt_source_buster
+    fi
+}
+
+function func_help() {
+    echo "
+使用方法:
+    ${BASE_NAME} [命令]
+
+支持的命令:
+    images      创建 docker images
+    build       编译源文件
+    help        展示 ${BASE_NAME} 脚本的帮助信息
+"
+}
+
+function func_build_docker_images() {
+   echo "Start building docker image..."
+    # 修改 Dockerfile 中的 postgresql 版本
+    sed -i "s|COPY dist/postgresql-.* /postgres|COPY dist/postgresql-${PG_VERSION} /postgres|g" ${WORK_HOME}/Dockerfile
+    # 创建 postgresql 镜像
+    docker build -t postgres:${PG_VERSION} $WORK_HOME
+    
+    echo "Finished."
+}
+
+case "$1" in
+    images)
+        # 创建 redis docker 构建容器
+        docker_env
+
+        docker exec -it build_pg_image_${PG_VERSION} /data/builder build
+        docker exec -it build_pg_image_${PG_VERSION} /data/builder clean
+        
+        func_build_docker_images
+
+        exit 0
+    ;;
+    build)
+        # func_install
+        # func_install_contrib
+        # func_install_citus
+
+        exit 0
+    ;;
+    sources)
+        add_apt_source $@
+
+        exit 0
+    ;;
+    clean)
+        func_clean
+    ;;
+    help)
+        func_help
+    ;;
+    *)
+        func_help
+        exit 1
+    ;;
+esac
