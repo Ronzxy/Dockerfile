@@ -1,0 +1,213 @@
+#!/bin/bash
+#
+# 作者：Skygangsta<skygangsta@hotmail.com>
+#
+# Nginx 编译脚本，仅支持 Debian 系 Linux 系统
+
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+export PATH
+
+WORK_HOME=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
+REDIS_VERSION=5.0.5
+REDIS_VERSION_MAJOR=`printf $REDIS_VERSION | awk -F '.' '{print $1}'`
+REDIS_VERSION_MINOR=`printf $REDIS_VERSION | awk -F '.' '{print $2}'`
+BUILD_PREFIX=/usr
+INSTALL_PREFIX=${WORK_HOME}/dist/redis-${REDIS_VERSION}
+
+# 探测cpu核心数
+if [ -f /proc/cpuinfo ]; then
+    j="-j$(grep 'model name' /proc/cpuinfo | wc -l || 1)"
+fi
+
+check_source_file() {
+    if [ ! -s "${WORK_HOME}/src/redis-${REDIS_VERSION}.tar.gz" ]; then
+        # 检查并安装 wget
+        dpkg -V wget || sh -c "apt update && apt install -y wget"
+
+        if [ ! -d "${WORK_HOME}/src" ]; then
+            mkdir -p "${WORK_HOME}/src"
+        fi
+
+        wget -c http://download.redis.io/releases/redis-${REDIS_VERSION}.tar.gz \
+            -O ${WORK_HOME}/src/redis-${REDIS_VERSION}.tar.gz
+        if [ $? -ne 0 ]; then
+            rm -rf ${WORK_HOME}/src/redis-${REDIS_VERSION}.tar.gz
+            exit $?
+        fi
+    fi
+}
+
+check_build_tools() {
+    # 安装编译工具
+    dpkg -V gcc g++ make patch || sh -c "\
+        apt update && \
+        apt install -y gcc g++ make patch"
+}
+
+check_install_deps() {
+    # 安装依赖
+    dpkg -V libpcre3-dev zlib1g-dev libssl-dev libjemalloc-dev || sh -c " \
+        apt update && \
+        apt install -y libpcre3-dev zlib1g-dev libssl-dev libjemalloc-dev"
+}
+
+build() {
+    check_source_file
+    check_build_tools
+    check_install_deps
+
+    echo "Start building redis..."
+
+    clean
+
+    tar xf ${WORK_HOME}/src/redis-${REDIS_VERSION}.tar.gz -C ${WORK_HOME}/src && \
+        cd ${WORK_HOME}/src/redis-${REDIS_VERSION}
+
+    make PREFIX=${INSTALL_PREFIX} install || exit 1
+    mkdir -p ${WORK_HOME}/dist/redis-${REDIS_VERSION}/conf
+    cp *.conf ${WORK_HOME}/dist/redis-${REDIS_VERSION}/conf
+
+    echo "Finished."
+}
+
+clean() {
+    echo "Start cleaning redis..."
+
+    if [ -d "${WORK_HOME}/src/redis-${REDIS_VERSION}" ]; then
+        rm -rf "${WORK_HOME}/src/redis-${REDIS_VERSION}"
+    fi
+
+    if [ -a "${WORK_HOME}/dist/redis-${REDIS_VERSION}" ]; then
+        rm -rf ${WORK_HOME}/dist/redis-${REDIS_VERSION}
+    fi
+
+    echo "Finished."
+}
+
+docker_env() {
+    echo "Start initializing docker env..."
+
+    docker ps -a | grep build_redis_image_${REDIS_VERSION} > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        # 容器未创建，默认使用 debian 9: stretch 镜像
+        IMAGE_NAME=debian:stretch
+        # 创建容器
+        docker run --name build_redis_image_${REDIS_VERSION} \
+            --volume=${WORK_HOME}:/data \
+            --volume=/usr/bin/docker:/usr/bin/docker \
+            --volume=/var/run/docker.sock:/var/run/docker.sock \
+            --cpu-shares=1024 --memory=512m --memory-swap=-1 \
+            --oom-kill-disable=true \
+            -t -i -d ${IMAGE_NAME} || exit 1
+    else
+        docker ps | grep build_redis_image_${REDIS_VERSION} > /dev/null 2>&1
+        if [ $? -ne 0 ]; then
+            docker start build_redis_image_${REDIS_VERSION} || exit 1
+        fi
+    fi
+
+    docker exec -it build_redis_image_${REDIS_VERSION} /data/builder sources ${IMAGE_NAME}
+
+    echo "Finished."
+}
+
+add_apt_source_buster() {
+    sed -i "s/^FROM debian:.*$/FROM debian:buster/g" ${WORK_HOME}/Dockerfile
+    sed -i "s/deb\ http:\/\/.*main/deb\ http:\/\/mirrors.aliyun.com\/debian\/\ buster\ main/g" ${WORK_HOME}/Dockerfile
+
+    if [ -r /.dockerenv ]; then
+        echo "deb http://mirrors.aliyun.com/debian/ buster main" > /etc/apt/sources.list
+    fi
+}
+
+add_apt_source_stretch() {
+    sed -i "s/^FROM debian:.*$/FROM debian:stretch/g" ${WORK_HOME}/Dockerfile
+    sed -i "s/deb\ http:\/\/.*main/deb\ http:\/\/mirrors.aliyun.com\/debian\/\ stretch\ main/g" ${WORK_HOME}/Dockerfile
+
+    if [ -r /.dockerenv ]; then
+        echo "deb http://mirrors.aliyun.com/debian/ stretch main" > /etc/apt/sources.list
+    fi
+}
+
+add_apt_source_jessie() {
+    sed -i "s/^FROM debian:.*$/FROM debian:jessie/g" ${WORK_HOME}/Dockerfile
+    sed -i "s/deb\ http:\/\/.*main/deb\ http:\/\/mirrors.aliyun.com\/debian\/\ jessie\ main/g" ${WORK_HOME}/Dockerfile
+
+    if [ -r /.dockerenv ]; then
+        echo "deb http://mirrors.aliyun.com/debian/ jessie main" > /etc/apt/sources.list
+    fi
+}
+
+add_apt_source() {
+    if [ ! -z $2 ]; then
+        IMAGE_NAME=$2
+    fi
+
+    if [ "${IMAGE_NAME}"x = "debian:jessie"x ]; then
+        add_apt_source_jessie
+    fi
+
+    if [ "${IMAGE_NAME}"x = "debian:stretch"x ]; then
+        add_apt_source_stretch
+    fi
+
+    if [ "${IMAGE_NAME}"x = "debian:buster"x ]; then
+        add_apt_source_buster
+    fi
+}
+
+function func_build_docker_images() {
+    echo "Start building docker image..."
+    # 修改 Dockerfile 中的 redis 版本
+    sed -i "s|COPY dist/redis-.* /redis|COPY dist/redis-${REDIS_VERSION} /redis|g" ${WORK_HOME}/Dockerfile
+    # 检查 docker 依赖
+    # dpkg -V libltdl-dev || apt update && apt install -y libltdl-dev
+    # 创建 redis 镜像
+    docker build -t redis:$REDIS_VERSION $WORK_HOME
+
+    clean
+    
+    echo "Finished."
+}
+
+function func_help() {
+    echo "
+使用方法:
+    ${BASE_NAME} [命令]
+
+支持的命令:
+    images      创建 docker images
+    build       编译源文件
+    help        展示 ${BASE_NAME} 脚本的帮助信息
+"
+}
+
+case "$1" in
+    images)
+        # 创建 redis docker 构建容器
+        docker_env
+
+        docker exec -it build_redis_image_${REDIS_VERSION} /data/builder build
+        
+        func_build_docker_images
+
+        exit 0
+    ;;
+    build)
+        build
+
+        exit 0
+    ;;
+    sources)
+        add_apt_source $@
+
+        exit 0
+    ;;
+    help)
+        func_help
+    ;;
+    *)
+        func_help
+        exit 1
+    ;;
+esac
