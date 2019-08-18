@@ -1,0 +1,17 @@
+#!/bin/bash
+# mongodb auto docker in debian
+# Powered by cr: zhangchaoren@openeasy.net
+
+WORK_HOME=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
+
+
+GLUSTER_VERSION=6.4
+
+for DIR in $(ls -d */); do
+    DIR=${DIR%/*}
+    
+    sed -i "s/^ENV GLUSTER_VERSION='.*'$/ENV GLUSTER_VERSION='${GLUSTER_VERSION}'/" ${WORK_HOME}/${DIR}/Dockerfile
+
+    docker build -t glusterfs:${GLUSTER_VERSION}-${DIR} ${WORK_HOME}/${DIR}
+
+done
