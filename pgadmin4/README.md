@@ -5,4 +5,5 @@ docker run --name pgadmin4 \
     -e PGADMIN_SETUP_PASSWORD='admin' \
     --cpu-shares=512 --memory=512m --memory-swap=-1 \
     --oom-kill-disable=true \
+    --restart=always \
     -t -i -d pgadmin4:4.10
