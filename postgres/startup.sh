@@ -40,7 +40,12 @@ init_pg() {
 
     echo "Asia/Shanghai" >> /etc/timezone
     ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-    echo "export PATH=$PGHOME/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin" >> /etc/profile.d/postgres.sh
+    
+    for i in $PGHOME/bin/*; do
+        if [ -x $i ]; then
+            ln -sf $i /usr/bin/`basename $i`
+        fi
+    done
     
     mkdir -p $PGDATA
     chown -R $PGUSER:$PGGROUP $PGDATA > /dev/null 2>&1
@@ -197,8 +202,6 @@ start_pg() {
 }
 
 stop_pg() {
-    
-
     if [ -f "$PGDATA/postmaster.pid" ]; then
         if [ "$1" = "" ]; then
             su - postgres -c "$PGHOME/bin/pg_ctl -D $PGDATA stop -m fast"

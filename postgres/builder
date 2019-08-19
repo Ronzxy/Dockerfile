@@ -11,6 +11,7 @@ PG_VERSION_MINOR=`printf $PG_VERSION | awk -F '.' '{print $2}'`
 BUILD_PREFIX=/usr
 INSTALL_PREFIX=${WORK_HOME}/dist/postgresql-${PG_VERSION}
 CITUS_VERSION=8.3.2
+POSTGIS_VERSION=2.5.3
 
 export PATH=${INSTALL_PREFIX}/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 
@@ -44,28 +45,45 @@ func_check_source_file() {
 
 func_check_build_tools() {
     # 安装编译工具
-    dpkg -V gcc g++ make patch lbzip2 || sh -c "\
-        apt update && \
-        apt install -y gcc g++ make patch lbzip2"
+    dpkg -V gcc g++ make patch lbzip2
+
+    if [ $? -ne 0 ]; then
+        apt update || exit 1
+        apt install -y gcc g++ make patch lbzip2
+
+        if [ $? -ne 0 ]; then
+            apt install -f
+            # 递归
+            func_check_build_tools
+        fi
+    fi
 }
 
 func_check_install_deps() {
     # 安装依赖
     dpkg -V zlib1g-dev libssl-dev libreadline-dev libkrb5-dev libpam-dev libxslt-dev libldap2-dev \
-        libcurl4-openssl-dev libossp-uuid-dev libselinux-dev libsystemd-dev libpython3-dev python3 gettext flex bison || sh -c " \
-        apt update && \
-        apt install -y zlib1g-dev libssl-dev libreadline-dev libkrb5-dev libpam-dev libxslt-dev \
-            libldap2-dev libcurl4-openssl-dev libossp-uuid-dev libselinux-dev libsystemd-dev libpython3-dev python3 gettext flex bison"
+        libcurl4-openssl-dev libossp-uuid-dev libselinux-dev libsystemd-dev libpython3-dev python3 \
+        gettext flex bison libgeos-dev libproj-dev libgdal-dev
+
+    if [ $? -ne 0 ]; then
+        apt update || exit 1
+        apt install -fy zlib1g-dev libssl-dev libreadline-dev libkrb5-dev libpam-dev libxslt-dev \
+            libldap2-dev libcurl4-openssl-dev libossp-uuid-dev libselinux-dev libsystemd-dev \
+            libpython3-dev python3 gettext flex bison libgeos-dev libproj-dev libgdal-dev
+
+        if [ $? -ne 0 ]; then
+            apt install -f
+            # 递归
+            func_check_install_deps
+        fi
+    fi
+        
 }
 
 func_configure() {
     if [ -f "${WORK_HOME}/src/postgresql-${PG_VERSION}/src/backend/postgres" ]; then
         func_clean
     fi
-
-    # if [ -f "${WORK_HOME}/dist/postgresql-${PG_VERSION}/Makefile" ]; then
-    #     func_clean
-    # fi
 
     func_check_source_file
     func_check_build_tools
@@ -152,16 +170,25 @@ func_install_citus() {
     tar xf ${WORK_HOME}/src/citus-${CITUS_VERSION}.tar.gz -C ${WORK_HOME}/src && \
         cd ${WORK_HOME}/src/citus-${CITUS_VERSION}
 
-    ./configure --prefix=${INSTALL_PREFIX}
+    ./configure
+    make $j
+    make install
+}
+
+func_install_postgis() {
+    if [ -d "${WORK_HOME}/src/postgis-${POSTGIS_VERSION}" ]; then
+        rm -rf "${WORK_HOME}/src/postgis-${POSTGIS_VERSION}"
+    fi
+
+    tar xf ${WORK_HOME}/src/postgis-${POSTGIS_VERSION}.tar.gz -C ${WORK_HOME}/src && \
+        cd ${WORK_HOME}/src/postgis-${POSTGIS_VERSION}
+
+    ./configure
     make $j
     make install
 }
 
 func_clean() {
-    # if [ -f ${INSTALL_PREFIX}/cache/postgresql.pid ]; then
-    #     stop
-    # fi
-
     echo "Start cleaning postgresql..."
 
     if [ -d "${WORK_HOME}/src/postgresql-${PG_VERSION}" ]; then
@@ -170,6 +197,10 @@ func_clean() {
 
     if [ -d "${WORK_HOME}/src/citus-${CITUS_VERSION}" ]; then
         rm -rf "${WORK_HOME}/src/citus-${CITUS_VERSION}"
+    fi
+
+    if [ -d "${WORK_HOME}/src/postgis-${POSTGIS_VERSION}" ]; then
+        rm -rf "${WORK_HOME}/src/postgis-${POSTGIS_VERSION}"
     fi
 
     echo "Finished."
@@ -262,7 +293,7 @@ function func_help() {
 function func_build_docker_images() {
    echo "Start building docker image..."
     # 修改 Dockerfile 中的 postgresql 版本
-    sed -i "s|COPY dist/postgresql-.* /postgres|COPY dist/postgresql-${PG_VERSION} /postgres|g" ${WORK_HOME}/Dockerfile
+    sed -i "s|COPY dist/postgresql-.* /usr/postgres|COPY dist/postgresql-${PG_VERSION} /usr/postgres|g" ${WORK_HOME}/Dockerfile
     # 创建 postgresql 镜像
     docker build -t postgres:${PG_VERSION} $WORK_HOME
     
@@ -282,9 +313,10 @@ case "$1" in
         exit 0
     ;;
     build)
-        # func_install
-        # func_install_contrib
-        # func_install_citus
+        func_install
+        func_install_contrib
+        func_install_citus
+        func_install_postgis
 
         exit 0
     ;;

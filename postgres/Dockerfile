@@ -5,7 +5,7 @@ RUN echo "deb http://mirrors.aliyun.com/debian/ stretch main" > /etc/apt/sources
 # 安装依赖包
 RUN apt update && \
     apt install -y libpcre3 zlib1g libreadline-dev libkrb5-dev libldap2-dev \
-        libcurl3 libossp-uuid-dev libpython3.5 python3 gettext flex bison locales && \
+        libcurl3 libossp-uuid-dev libpython3.5 python3 gettext flex bison libgeos-dev libproj-dev libgdal-dev locales && \
     apt upgrade -y && \
     apt autoclean && \
     apt autoremove && \
