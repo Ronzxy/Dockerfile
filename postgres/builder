@@ -5,6 +5,8 @@
 # Postgres 编译脚本，仅支持 Debian 系 Linux 系统
 
 WORK_HOME=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
+BASE_NAME=$(basename $BASH_SOURCE)
+
 PG_VERSION=11.5
 PG_VERSION_MAJOR=`printf $PG_VERSION | awk -F '.' '{print $1}'`
 PG_VERSION_MINOR=`printf $PG_VERSION | awk -F '.' '{print $2}'`
@@ -63,13 +65,13 @@ func_check_install_deps() {
     # 安装依赖
     dpkg -V zlib1g-dev libssl-dev libreadline-dev libkrb5-dev libpam-dev libxslt-dev libldap2-dev \
         libcurl4-openssl-dev libossp-uuid-dev libselinux-dev libsystemd-dev libpython3-dev python3 \
-        gettext flex bison libgeos-dev libproj-dev libgdal-dev
+        gettext flex bison libgeos-dev libproj-dev libgdal-dev python3-distutils
 
     if [ $? -ne 0 ]; then
         apt update || exit 1
         apt install -fy zlib1g-dev libssl-dev libreadline-dev libkrb5-dev libpam-dev libxslt-dev \
             libldap2-dev libcurl4-openssl-dev libossp-uuid-dev libselinux-dev libsystemd-dev \
-            libpython3-dev python3 gettext flex bison libgeos-dev libproj-dev libgdal-dev
+            libpython3-dev python3 gettext flex bison libgeos-dev libproj-dev libgdal-dev python3-distutils
 
         if [ $? -ne 0 ]; then
             apt install -f
@@ -111,7 +113,7 @@ func_configure() {
         --with-selinux \
         --with-systemd \
         --with-libs=${INSTALL_PREFIX}/lib/ \
-        --with-includes=${INSTALL_PREFIX}/include/ || exit 1
+        --with-includes=${INSTALL_PREFIX}/include/ || sh -c "${WORK_HOME}/${BASE_NAME} clean && exit 1"
 
     echo "Finished."
 }
@@ -129,6 +131,8 @@ func_build() {
 
     if [ $? -ne 0 ]; then
         echo -e "\033[31m[ERROR] Compile encountered with an error.\033[0m"
+        
+        func_clean
         exit 1
     fi
 
@@ -170,9 +174,9 @@ func_install_citus() {
     tar xf ${WORK_HOME}/src/citus-${CITUS_VERSION}.tar.gz -C ${WORK_HOME}/src && \
         cd ${WORK_HOME}/src/citus-${CITUS_VERSION}
 
-    ./configure
-    make $j
-    make install
+    ./configure --prefix=${INSTALL_PREFIX} || sh -c "${WORK_HOME}/${BASE_NAME} clean && exit 1"
+    make $j || sh -c "${WORK_HOME}/${BASE_NAME} clean && exit 1"
+    make install || sh -c "${WORK_HOME}/${BASE_NAME} clean && exit 1"
 }
 
 func_install_postgis() {
@@ -183,9 +187,9 @@ func_install_postgis() {
     tar xf ${WORK_HOME}/src/postgis-${POSTGIS_VERSION}.tar.gz -C ${WORK_HOME}/src && \
         cd ${WORK_HOME}/src/postgis-${POSTGIS_VERSION}
 
-    ./configure
-    make $j
-    make install
+    ./configure --prefix=${INSTALL_PREFIX} || sh -c "${WORK_HOME}/${BASE_NAME} clean && exit 1"
+    make $j || sh -c "${WORK_HOME}/${BASE_NAME} clean && exit 1"
+    make install || sh -c "${WORK_HOME}/${BASE_NAME} clean && exit 1"
 }
 
 func_clean() {
@@ -209,7 +213,7 @@ func_clean() {
 docker_env() {
     echo "Start initializing docker env..."
 
-    IMAGE_NAME=debian:stretch
+    IMAGE_NAME=debian:buster
     docker ps -a | grep build_pg_image_${PG_VERSION} > /dev/null 2>&1
     if [ $? -ne 0 ]; then
         # 容器未创建
@@ -235,10 +239,10 @@ docker_env() {
 
 add_apt_source_buster() {
     sed -i "s/^FROM debian:.*$/FROM debian:buster/g" ${WORK_HOME}/Dockerfile
-    sed -i "s/deb\ http:\/\/.*main/deb\ http:\/\/mirrors.aliyun.com\/debian\/\ buster\ main/g" ${WORK_HOME}/Dockerfile
+    sed -i "s/deb\ http:\/\/.*main/deb\ http:\/\/mirrors.163.com\/debian\/\ buster\ main/g" ${WORK_HOME}/Dockerfile
 
     if [ -r /.dockerenv ]; then
-        echo "deb http://mirrors.aliyun.com/debian/ buster main" > /etc/apt/sources.list
+        echo "deb http://mirrors.163.com/debian/ buster main" > /etc/apt/sources.list
     fi
 }
 

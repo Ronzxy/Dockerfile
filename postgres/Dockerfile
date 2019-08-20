@@ -1,11 +1,11 @@
-FROM debian:stretch
+FROM debian:buster
 
-RUN echo "deb http://mirrors.aliyun.com/debian/ stretch main" > /etc/apt/sources.list
+RUN echo "deb http://mirrors.163.com/debian/ buster main" > /etc/apt/sources.list
 
 # 安装依赖包
 RUN apt update && \
     apt install -y libpcre3 zlib1g libreadline-dev libkrb5-dev libldap2-dev \
-        libcurl3 libossp-uuid-dev libpython3.5 python3 gettext flex bison libgeos-dev libproj-dev libgdal-dev locales && \
+        libcurl4 libossp-uuid-dev libpython3.5 python3 gettext flex bison libgeos-dev libproj-dev libgdal-dev locales && \
     apt upgrade -y && \
     apt autoclean && \
     apt autoremove && \
@@ -24,7 +24,8 @@ ENV ENABLE_CITUS="YES"
 ENV PGTYPE="MASTER"
 ENV PGMASTER_HOST=""
 ENV PGMASTER_PORT=5432
-ENV SYNC_MODE=SYNC
+# SYNC
+ENV SYNC_MODE=NONE
 ENV SYNC_NAME=""
 
 # 添加用户
@@ -41,4 +42,4 @@ RUN chmod 755 /startup.sh
 
 EXPOSE 5432
 
-CMD ["./startup.sh", "start"]
+ENTRYPOINT ["./startup.sh", "start"]

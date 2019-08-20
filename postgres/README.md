@@ -13,14 +13,14 @@ chmod 755 builder
 
 # 创建容器
 ```shell
-docker run --name postgres_11.5 \
+docker run --name postgres \
 -p 54321:5432 \
 -v /home/storage/run/docker/postgres/meta:/var/lib/postgres \
---cpu-shares=512 --memory=1G --memory-swap=-1 \
 -e POSTGRES_PASSWORD=123456 \
---oom-kill-disable \
+--cpu-shares=512 --memory=1G --memory-swap=0 \
 --restart=always \
--itd postgres:11.5
+--oom-kill-disable \
+-it -d postgres:11.5
 ```
 
 ## Citus 优化
@@ -36,12 +36,52 @@ SET citus.shard_replication_factor TO '2pc'
 
 # 创建PostGIS空间数据库
 
-CONTAINER_NAME=postgres_11.5
+CONTAINER_NAME=postgres_master
 
 docker exec -it ${CONTAINER_NAME} createdb -U postgres template_postgis
 docker exec -it ${CONTAINER_NAME} psql -U postgres -f /usr/postgres/share/contrib/postgis-2.5/postgis.sql -d template_postgis
 docker exec -it ${CONTAINER_NAME} psql -U postgres -f /usr/postgres/share/contrib/postgis-2.5/spatial_ref_sys.sql -d template_postgis
 
 
+# 创建 PostgreSQL 集群
+
+```shell
+docker run --name postgres_master \
+-p 54321:5432 \
+-v /home/storage/run/docker/postgres/meta/master:/var/lib/postgres \
+-e POSTGRES_PASSWORD=123456 \
+-e SYNC_MODE=SYNC \
+-e NETWORK="172.17.0.0/24" \
+--cpu-shares=512 --memory=2G --memory-swap=0 \
+--restart=always \
+--oom-kill-disable \
+-it -d postgres:11.5
+
+docker run --name postgres_backup1 \
+-p 54322:5432 \
+-v /home/storage/run/docker/postgres/meta/backup1:/var/lib/postgres \
+-e PGTYPE="BACKUP" \
+-e PGMASTER_HOST="172.17.0.1" \
+-e PGMASTER_PORT=54321 \
+-e SYNC_MODE=SYNC \
+-e SYNC_NAME="backup1" \
+--cpu-shares=512 --memory=1G --memory-swap=0 \
+--restart=always \
+--oom-kill-disable \
+-it -d postgres:11.5
+
+docker run --name postgres_backup2 \
+-p 54323:5432 \
+-v /home/storage/run/docker/postgres/meta/backup2:/var/lib/postgres \
+-e PGTYPE="BACKUP" \
+-e PGMASTER_HOST="172.17.0.1" \
+-e PGMASTER_PORT=54321 \
+-e SYNC_MODE=SYNC \
+-e SYNC_NAME="backup2" \
+--cpu-shares=512 --memory=1G --memory-swap=0 \
+--restart=always \
+--oom-kill-disable \
+-it -d postgres:11.5
+```
 
 
