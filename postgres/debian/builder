@@ -30,18 +30,34 @@ func_check_source_file() {
         mkdir -p "${WORK_HOME}/src"
     fi
 
-    if [ -s ${WORK_HOME}/src/postgresql-${PG_VERSION}.tar.bz2 ]; then
-        echo "${WORK_HOME}/src/postgresql-${PG_VERSION}.tar.bz2 [found]"
-      else
-        cd ${WORK_HOME}/src
-        wget -c https://ftp.postgresql.org/pub/source/v${PG_VERSION}/postgresql-${PG_VERSION}.tar.bz2 || exit 1
+    if [ ! -s ${WORK_HOME}/src/postgresql-${PG_VERSION}.tar.bz2 ]; then
+        wget https://ftp.postgresql.org/pub/source/v${PG_VERSION}/postgresql-${PG_VERSION}.tar.bz2 \
+            -O ${WORK_HOME}/src/postgresql-${PG_VERSION}.tar.bz2
+        
+        if [ $? -ne 0 ]; then
+            rm -rf ${WORK_HOME}/src/postgresql-${PG_VERSION}.tar.gz
+            exit $?
+        fi
     fi
 
-    if [ -s ${WORK_HOME}/src/citus-${CITUS_VERSION}.tar.gz ]; then
-        echo "${WORK_HOME}/src/citus-${CITUS_VERSION}.tar.gz [found]"
-    else
-        cd ${WORK_HOME}/src
-        wget -c https://github.com/citusdata/citus/archive/v${CITUS_VERSION}.tar.gz -O citus-${CITUS_VERSION}.tar.gz || exit 1
+    if [ ! -s ${WORK_HOME}/src/citus-${CITUS_VERSION}.tar.gz ]; then
+        wget https://github.com/citusdata/citus/archive/v${CITUS_VERSION}.tar.gz \
+            -O ${WORK_HOME}/src/citus-${CITUS_VERSION}.tar.gz
+        
+        if [ $? -ne 0 ]; then
+            rm -rf ${WORK_HOME}/src/citus-${CITUS_VERSION}.tar.gz
+            exit $?
+        fi
+    fi
+
+    if [ ! -s ${WORK_HOME}/src/postgis-${POSTGIS_VERSION}.tar.gz ]; then
+        wget https://download.osgeo.org/postgis/source/postgis-${POSTGIS_VERSION}.tar.gz \
+            -O ${WORK_HOME}/src/postgis-${POSTGIS_VERSION}.tar.gz
+        
+        if [ $? -ne 0 ]; then
+            rm -rf ${WORK_HOME}/src/postgis-${POSTGIS_VERSION}.tar.gz
+            exit $?
+        fi
     fi
 }
 
